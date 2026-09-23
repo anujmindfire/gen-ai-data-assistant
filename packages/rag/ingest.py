@@ -3,7 +3,8 @@
 Handles loading, parsing, chunking, and preparing documents for vector indexing.
 """
 
-from typing import List, Dict, Any
+from typing import Any
+
 from packages.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,7 +26,7 @@ class DocumentIngestor:
             f"Initialized DocumentIngestor (chunk_size={chunk_size}, overlap={chunk_overlap})"
         )
 
-    async def process_document(self, file_path: str) -> List[Dict[str, Any]]:
+    async def process_document(self, file_path: str) -> list[dict[str, Any]]:
         """Placeholder method to parse and chunk a document file.
 
         Args:

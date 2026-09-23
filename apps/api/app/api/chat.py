@@ -1,9 +1,9 @@
-"""Chat route handler for /chat placeholder endpoint."""
+"""Chat route handler for POST /chat endpoint."""
 
-from fastapi import APIRouter, HTTPException, status, Depends
-from apps.api.app.models.chat import ChatRequest, ChatResponse
 from apps.api.app.dependencies.services import get_chat_service
+from apps.api.app.models.chat import ChatRequest, ChatResponse
 from apps.api.app.services.chat_service import ChatService
+from fastapi import APIRouter, Depends, status
 
 router = APIRouter(tags=["Chat"])
 
@@ -11,21 +11,13 @@ router = APIRouter(tags=["Chat"])
 @router.post(
     "/chat",
     response_model=ChatResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="Invoke GenAI Chat Assistant (Placeholder)",
-    description="Endpoint for querying the GenAI Data Assistant using LangGraph multi-agent routing.",
+    status_code=status.HTTP_200_OK,
+    summary="Chat with Gemini Assistant",
+    description="Submits user message prompt to Google Gemini LLM and returns structured answer.",
 )
 async def chat_endpoint(
     request: ChatRequest,
     chat_service: ChatService = Depends(get_chat_service),
 ) -> ChatResponse:
-    """Placeholder endpoint returning 501 Not Implemented.
-
-    TODO (Phase 4):
-        - Pass user prompt to LangGraph workflow graph.
-        - Stream or return synthesized response from Google Gemini API.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Chat endpoint not implemented yet. TODO: Integrate LangGraph workflow graph.",
-    )
+    """Execute direct chat completion with Google Gemini."""
+    return await chat_service.generate_response(message=request.message)

@@ -8,16 +8,20 @@ Nodes:
     - respond: Generates final response using Google Gemini API
 """
 
-from typing import Dict, Any, Literal
-from langgraph.graph import StateGraph, END
+from typing import Literal
+
+from langgraph.graph import END, StateGraph
+
 from packages.shared.logging import get_logger
-from .state import AgentState
+
 from .router import route_intent_node
+from .state import AgentState
 
 logger = get_logger(__name__)
 
 
 # --- Node Definitions ---
+
 
 async def rag_node(state: AgentState) -> AgentState:
     """RAG retrieval node skeleton.
@@ -73,6 +77,7 @@ async def respond_node(state: AgentState) -> AgentState:
 
 # --- Conditional Routing Decision ---
 
+
 def select_next_node(state: AgentState) -> Literal["rag", "sql"]:
     """Conditional edge decision function directing traffic based on intent."""
     intent = state.get("intent")
@@ -82,6 +87,7 @@ def select_next_node(state: AgentState) -> Literal["rag", "sql"]:
 
 
 # --- Workflow Graph Builder ---
+
 
 def create_workflow_graph() -> StateGraph:
     """Construct and compile the complete LangGraph DAG workflow.

@@ -1,6 +1,5 @@
 """Embedding service placeholder for vector embedding generation."""
 
-from typing import List
 from packages.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +18,7 @@ class EmbeddingService:
         self.model_name = model_name
         logger.info(f"Initialized EmbeddingService with model: {model_name}")
 
-    async def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
         """Generate dense vector embeddings for a list of text strings.
 
         Args:

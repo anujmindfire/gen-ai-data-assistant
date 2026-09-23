@@ -1,6 +1,7 @@
 """Vector retriever placeholder interfacing with Qdrant vector database."""
 
-from typing import List, Dict, Any
+from typing import Any
+
 from packages.shared.logging import get_logger
 from packages.shared.settings import settings
 
@@ -23,7 +24,7 @@ class VectorRetriever:
             f"Initialized VectorRetriever for collection '{collection_name}' at {self.qdrant_url}"
         )
 
-    async def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """Search vector database for documents relevant to query string.
 
         Args:

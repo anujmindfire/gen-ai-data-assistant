@@ -1,26 +1,21 @@
 """Pydantic schemas for /chat endpoint."""
 
-from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
-    """User query payload for the /chat endpoint."""
+    """User query request payload for /chat endpoint."""
 
-    prompt: str = Field(
+    message: str = Field(
         ...,
-        description="Natural language query or question from user",
-        examples=["What was the total revenue in Q1 2026?"],
-    )
-    conversation_id: Optional[str] = Field(
-        default=None, description="Optional conversation session UUID"
+        description="Natural language message prompt from user",
+        examples=["Hello"],
     )
 
 
 class ChatResponse(BaseModel):
-    """Response payload returned by the /chat endpoint."""
+    """Response payload returned by /chat endpoint."""
 
-    conversation_id: str
-    response: str
-    intent: Optional[str] = None
-    sources: Optional[List[Dict[str, Any]]] = None
+    answer: str = Field(..., description="Generated answer text from Gemini")
+    provider: str = Field(default="gemini", description="LLM service provider name")
+    model: str = Field(..., description="Gemini model identifier used")

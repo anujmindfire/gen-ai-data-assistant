@@ -1,6 +1,7 @@
 """Pydantic schemas for /documents endpoints."""
 
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -9,7 +10,7 @@ class DocumentIngestRequest(BaseModel):
 
     title: str = Field(..., description="Document title")
     content: str = Field(..., description="Raw text content of the document")
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None, description="Arbitrary metadata attributes"
     )
 
@@ -26,5 +27,5 @@ class DocumentItem(BaseModel):
 class DocumentListResponse(BaseModel):
     """List response for documents endpoint."""
 
-    documents: List[DocumentItem]
+    documents: list[DocumentItem]
     total: int

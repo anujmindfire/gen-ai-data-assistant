@@ -1,7 +1,7 @@
 """Shared utility functions across monorepo packages."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
 
 def generate_uuid() -> str:
@@ -11,4 +11,4 @@ def generate_uuid() -> str:
 
 def get_utc_now() -> str:
     """Get current UTC timestamp formatted as ISO-8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

@@ -1,12 +1,12 @@
 """Document management route handlers (/documents/ingest, /documents, /documents/{id})."""
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from apps.api.app.dependencies.services import get_document_service
 from apps.api.app.models.documents import (
     DocumentIngestRequest,
     DocumentListResponse,
 )
-from apps.api.app.dependencies.services import get_document_service
 from apps.api.app.services.document_service import DocumentService
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 

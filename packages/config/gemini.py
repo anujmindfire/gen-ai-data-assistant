@@ -1,8 +1,9 @@
 """Google Gemini LLM client configuration using LangChain Google GenAI integration."""
 
 import os
-from typing import Optional
+
 from langchain_google_genai import ChatGoogleGenerativeAI
+
 from packages.shared.logging import get_logger
 from packages.shared.settings import settings
 
@@ -10,7 +11,7 @@ logger = get_logger(__name__)
 
 
 def get_gemini_client(
-    model_name: Optional[str] = None,
+    model_name: str | None = None,
     temperature: float = 0.2,
 ) -> ChatGoogleGenerativeAI:
     """Initialize and return a ChatGoogleGenerativeAI client instance.

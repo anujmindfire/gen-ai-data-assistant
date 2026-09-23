@@ -1,6 +1,7 @@
 """Intent router node placeholder for LangGraph workflow."""
 
 from packages.shared.logging import get_logger
+
 from .state import AgentState
 
 logger = get_logger(__name__)
@@ -21,12 +22,18 @@ async def route_intent_node(state: AgentState) -> AgentState:
         AgentState: Updated state with classified intent ('rag' or 'sql').
     """
     query = state.get("query", "").lower()
-    logger.info(
-        f"LangGraph Router Node evaluating query (placeholder): '{query}'"
-    )
+    logger.info(f"LangGraph Router Node evaluating query (placeholder): '{query}'")
 
     # Simple heuristic routing placeholder
-    sql_keywords = ["revenue", "sales", "order", "customer", "product", "total", "count"]
+    sql_keywords = [
+        "revenue",
+        "sales",
+        "order",
+        "customer",
+        "product",
+        "total",
+        "count",
+    ]
     if any(keyword in query for keyword in sql_keywords):
         intent = "sql"
     else:

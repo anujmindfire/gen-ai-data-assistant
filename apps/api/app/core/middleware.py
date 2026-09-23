@@ -2,10 +2,11 @@
 
 import time
 import uuid
+
 from fastapi import Request
+from packages.shared.logging import get_logger
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
-from packages.shared.logging import get_logger
 
 logger = get_logger("api.middleware")
 
