@@ -1,31 +1,39 @@
 """Pydantic schemas for /documents endpoints."""
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
-class DocumentIngestRequest(BaseModel):
-    """Payload for initiating document ingestion."""
+class DocumentIngestResponse(BaseModel):
+    """Response payload returned by POST /documents/ingest."""
 
-    title: str = Field(..., description="Document title")
-    content: str = Field(..., description="Raw text content of the document")
-    metadata: dict[str, Any] | None = Field(
-        default=None, description="Arbitrary metadata attributes"
+    id: str = Field(..., description="Unique document UUID")
+    filename: str = Field(..., description="Original filename of uploaded document")
+    type: str = Field(
+        ...,
+        description="Normalized document file extension (pdf, docx, txt, md)",
     )
+    size: int = Field(..., description="File size in bytes")
+    status: str = Field(default="ingested", description="Ingestion processing status")
 
 
 class DocumentItem(BaseModel):
-    """Document metadata schema."""
+    """Document metadata item schema for GET /documents response."""
 
-    id: str
-    title: str
-    chunk_count: int
-    created_at: str
+    id: str = Field(..., description="Unique document UUID")
+    filename: str = Field(..., description="Document filename")
+    type: str = Field(..., description="Document file extension type")
 
 
 class DocumentListResponse(BaseModel):
-    """List response for documents endpoint."""
+    """Response list payload returned by GET /documents."""
 
-    documents: list[DocumentItem]
-    total: int
+    documents: list[DocumentItem] = Field(description="Array of stored document items")
+
+
+class DocumentDeleteResponse(BaseModel):
+    """Response payload returned by DELETE /documents/{id}."""
+
+    message: str = Field(
+        default="Document deleted",
+        description="Status message confirming document deletion",
+    )

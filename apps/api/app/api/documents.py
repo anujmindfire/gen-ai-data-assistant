@@ -2,73 +2,57 @@
 
 from apps.api.app.dependencies.services import get_document_service
 from apps.api.app.models.documents import (
-    DocumentIngestRequest,
-    DocumentListResponse,
+    DocumentDeleteResponse,
+    DocumentIngestResponse,
+    DocumentItem,
 )
 from apps.api.app.services.document_service import DocumentService
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
 @router.post(
     "/ingest",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="Ingest Document into RAG Vector Store (Placeholder)",
-    description="Parses, chunks, embeds, and indexes unstructured documents into Qdrant.",
+    response_model=DocumentIngestResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ingest Document File",
+    description="Uploads, parses, and registers document metadata for supported formats (.pdf, .docx, .txt, .md).",
 )
 async def ingest_document(
-    request: DocumentIngestRequest,
+    file: UploadFile = File(..., description="Target document file to ingest"),
     doc_service: DocumentService = Depends(get_document_service),
-) -> None:
-    """Placeholder endpoint for document ingestion pipeline.
-
-    TODO (Phase 2):
-        - Call DocumentIngestor and EmbeddingService to store document chunks in Qdrant.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Document ingestion endpoint not implemented yet. TODO: Implement RAG ingestion pipeline.",
-    )
+) -> DocumentIngestResponse:
+    """Ingest uploaded document file."""
+    return await doc_service.ingest_document(file=file)
 
 
 @router.get(
     "",
-    response_model=DocumentListResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="List Ingested Documents (Placeholder)",
-    description="Fetches metadata listing of documents stored in Qdrant vector database.",
+    response_model=list[DocumentItem],
+    status_code=status.HTTP_200_OK,
+    summary="List Uploaded Documents",
+    description="Returns array of all registered documents.",
 )
 async def list_documents(
     doc_service: DocumentService = Depends(get_document_service),
-) -> DocumentListResponse:
-    """Placeholder endpoint for listing ingested documents.
-
-    TODO (Phase 2):
-        - Query Qdrant collection payload points to return document catalog.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="List documents endpoint not implemented yet. TODO: Query vector database index.",
-    )
+) -> list[DocumentItem]:
+    """Retrieve list of registered documents."""
+    response = await doc_service.list_documents()
+    return response.documents
 
 
 @router.delete(
     "/{document_id}",
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    summary="Delete Document by ID (Placeholder)",
-    description="Deletes all vectors and metadata matching target document_id.",
+    response_model=DocumentDeleteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete Document by ID",
+    description="Purges document metadata record and deletes physical file from storage.",
 )
 async def delete_document(
     document_id: str,
     doc_service: DocumentService = Depends(get_document_service),
-) -> None:
-    """Placeholder endpoint for purging document embeddings.
-
-    TODO (Phase 2):
-        - Remove document vector points from Qdrant index.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"Delete document endpoint not implemented yet for ID '{document_id}'. TODO: Delete document from vector database.",
-    )
+) -> DocumentDeleteResponse:
+    """Delete document by ID."""
+    await doc_service.delete_document(document_id=document_id)
+    return DocumentDeleteResponse(message="Document deleted")

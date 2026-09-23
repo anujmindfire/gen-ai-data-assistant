@@ -34,12 +34,74 @@ class GeminiConfigException(Exception):
         super().__init__(self.message)
 
 
+class DocumentValidationException(Exception):
+    """Exception raised when document upload, format, or parsing fails."""
+
+    def __init__(
+        self,
+        message: str = "Invalid or unsupported document file.",
+        code: str = "DOCUMENT_VALIDATION_ERROR",
+    ) -> None:
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
+class DocumentNotFoundException(Exception):
+    """Exception raised when document ID is not found."""
+
+    def __init__(
+        self,
+        message: str = "Document not found.",
+        code: str = "DOCUMENT_NOT_FOUND",
+    ) -> None:
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register custom JSON exception handlers for all HTTP, validation, and Gemini errors.
+    """Register custom JSON exception handlers for all HTTP, validation, Gemini, and document errors.
 
     Args:
         app: FastAPI instance.
     """
+
+    @app.exception_handler(DocumentValidationException)
+    async def document_validation_exception_handler(
+        request: Request, exc: DocumentValidationException
+    ) -> JSONResponse:
+        """Handler for document format validation and parsing errors."""
+        logger.warning(
+            f"DocumentValidationException: {exc.message} - Path: {request.url.path}"
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                }
+            },
+        )
+
+    @app.exception_handler(DocumentNotFoundException)
+    async def document_not_found_exception_handler(
+        request: Request, exc: DocumentNotFoundException
+    ) -> JSONResponse:
+        """Handler for missing document ID errors."""
+        logger.warning(
+            f"DocumentNotFoundException: {exc.message} - Path: {request.url.path}"
+        )
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                }
+            },
+        )
 
     @app.exception_handler(GeminiAPIException)
     async def gemini_api_exception_handler(

@@ -29,6 +29,16 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS documents (
+    id VARCHAR(36) PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    file_path VARCHAR(512) NOT NULL,
+    size BIGINT NOT NULL,
+    pages INT NOT NULL DEFAULT 1,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed Sample Records for Revenue and Analytics Queries
 INSERT INTO customers (name, email, country) VALUES
 ('Acme Corp', 'contact@acme.com', 'United States'),

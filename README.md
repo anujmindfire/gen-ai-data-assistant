@@ -10,7 +10,7 @@ The GenAI Data Assistant acts as an intelligent router and orchestration engine.
 1. **RAG Pipeline**: Retrieves vector context from Qdrant for document/unstructured data queries.
 2. **SQL Agent**: Formulates and executes safe SQL queries against PostgreSQL for structured business analytics (e.g., revenue queries on customers, products, and orders).
 
-Direct `/chat` requests are powered by **Google Gemini** (`gemini-2.5-flash`).
+Direct `/chat` requests are powered by **Google Gemini** (`gemini-3.6-flash`).
 
 ```mermaid
 flowchart TD
@@ -55,20 +55,20 @@ genai-data-assistant/
 │       └── uv.lock           # Locked dependency tree
 │
 ├── packages/                 # Shared Monorepo Packages
-│   ├── rag/                  # Document ingestion, embeddings & retriever skeletons
+│   ├── rag/                  # Document ingestion, embeddings & retriever modules
 │   ├── sql_agent/            # DB schema inspector, query validator & SQL agent skeletons
 │   ├── graph/                # LangGraph state definition, router & workflow DAG
 │   ├── shared/               # Shared settings, Gemini client, logging & utilities
 │   └── config/               # Alembic database migrations & Third-party integrations
 │
 ├── data/
-│   ├── documents/            # Volume placeholder for document storage
+│   ├── documents/            # Physical document storage location (data/documents/<uuid>_<filename>)
 │   └── postgres/             # PostgreSQL persistent data storage
 │
 ├── infra/
 │   ├── docker-compose.yml    # Multi-container setup (API, Postgres, Qdrant)
 │   ├── postgres/
-│   │   └── init.sql          # Seed script: customers, products, orders schema & data
+│   │   └── init.sql          # Seed script: customers, products, orders, documents schema & data
 │   └── qdrant/               # Qdrant volume storage
 │
 ├── scripts/
@@ -83,92 +83,84 @@ genai-data-assistant/
 
 ---
 
-## Google Gemini API Setup Guide
+## Document Ingestion & Storage
 
-To use the Google Gemini LLM integration:
+### Supported File Formats
+- `.pdf` (Parsed using `PyPDFLoader`)
+- `.docx` (Parsed using `Docx2txtLoader`)
+- `.txt` (Parsed using `TextLoader`)
+- `.md` (Parsed using `TextLoader`)
 
-### 1. Get a Free Google Gemini API Key
-1. Go to [Google AI Studio](https://aistudio.google.com/).
-2. Sign in with your Google account.
-3. Click on **Create API Key**.
-4. Copy your generated API key string.
-
-### 2. Configure `.env` File
-Create or update your `.env` file in the project root:
-```bash
-cp .env.example .env
+### Storage Location
+Uploaded physical files are stored under:
+```text
+data/documents/<uuid>_<filename>
 ```
-
-Set `GEMINI_API_KEY` and optionally `GEMINI_MODEL`:
-```env
-GEMINI_API_KEY=AIzaSyYourActualGeminiApiKeyHere
-GEMINI_MODEL=gemini-2.5-flash
-```
+File metadata (id, filename, file_type, file_path, size, pages, uploaded_at) is persisted in the PostgreSQL `documents` table.
 
 ---
 
-## Quick Start & Running the Project
-
-### Running with Docker Compose
-
-Spin up the entire stack (FastAPI, PostgreSQL 16, and Qdrant) using Docker Compose:
-
-```bash
-make up
-# OR
-docker compose -f infra/docker-compose.yml up --build -d
-```
-
-### Accessing Services
-
-- **FastAPI Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
-- **Interactive Swagger Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **PostgreSQL Database**: `localhost:5432` (`db: assistant`, `user: genai`, `pass: genai`)
-- **Qdrant REST API**: `localhost:6333`
-
----
-
-## API Endpoints & Usage Example
+## API Endpoints & Specification
 
 | Method | Endpoint | Status | Description |
 |---|---|---|---|
 | `GET` | `/health` | **200 OK** | Health check returning service & Gemini configuration status |
 | `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
-| `POST` | `/documents/ingest` | **501 Not Implemented** | Future endpoint for RAG document ingestion pipeline |
-| `GET` | `/documents` | **501 Not Implemented** | Future endpoint for listing ingested vector documents |
-| `DELETE` | `/documents/{id}` | **501 Not Implemented** | Future endpoint for purging document embeddings |
+| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, and register document file metadata |
+| `GET` | `/documents` | **200 OK** | List all uploaded document records |
+| `DELETE` | `/documents/{id}` | **200 OK** | Delete document record and purge physical file from disk |
 
-### Example `/chat` Request
+---
 
-Send a message prompt to the assistant:
+## Usage Examples
+
+### 1. Upload & Ingest a Document
 
 ```bash
-curl -X POST "http://localhost:8000/chat" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Explain quantum computing in one sentence."}'
+curl -X POST "http://localhost:8000/documents/ingest" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@employee_handbook.pdf"
 ```
 
-### Example `/chat` Response
-
+**Response (`201 Created`)**:
 ```json
 {
-  "answer": "Quantum computing uses the principles of quantum mechanics to process complex information in ways that classical computers cannot.",
-  "provider": "gemini",
-  "model": "gemini-2.5-flash"
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "filename": "employee_handbook.pdf",
+  "type": "pdf",
+  "size": 120394,
+  "status": "ingested"
 }
 ```
 
-### Example `/health` Response
+### 2. List Ingested Documents
 
+```bash
+curl -X GET "http://localhost:8000/documents"
+```
+
+**Response (`200 OK`)**:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "filename": "employee_handbook.pdf",
+    "type": "pdf"
+  }
+]
+```
+
+### 3. Delete a Document
+
+```bash
+curl -X DELETE "http://localhost:8000/documents/550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Response (`200 OK`)**:
 ```json
 {
-  "status": "healthy",
-  "services": {
-    "api": true,
-    "postgres": true,
-    "qdrant": true,
-    "gemini_configured": true
-  }
+  "message": "Document deleted"
 }
 ```
 
@@ -178,7 +170,7 @@ curl -X POST "http://localhost:8000/chat" \
 
 ### Running Tests
 
-Run the Pytest suite (including mocked Gemini unit tests):
+Run the Pytest suite (including document ingestion tests):
 ```bash
 make test
 ```
