@@ -1,7 +1,8 @@
-"""Document management service for saving, parsing, listing, and deleting documents."""
+"""Document management service for saving, parsing, chunking, listing, and deleting documents."""
 
 import datetime
 import os
+import time
 import uuid
 
 from apps.api.app.core.exceptions import (
@@ -14,6 +15,7 @@ from apps.api.app.models.documents import (
     DocumentListResponse,
 )
 from fastapi import UploadFile
+from packages.rag.chunking import DocumentChunker
 from packages.rag.ingest import SUPPORTED_EXTENSIONS, DocumentParser
 from packages.shared.db import doc_repository
 from packages.shared.logging import get_logger
@@ -26,25 +28,27 @@ STORAGE_DIR = os.path.abspath(
 
 
 class DocumentService:
-    """Service layer managing physical document storage, parsing, and persistence."""
+    """Service layer managing physical document storage, parsing, chunking, and persistence."""
 
     def __init__(self, storage_dir: str = STORAGE_DIR) -> None:
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self.parser = DocumentParser()
+        self.chunker = DocumentChunker()
 
     async def ingest_document(self, file: UploadFile) -> DocumentIngestResponse:
-        """Handle multipart document upload, parsing, storage, and metadata persistence.
+        """Handle multipart document upload, parsing, chunking, storage, and metadata persistence.
 
         Args:
             file: FastAPI UploadFile object.
 
         Returns:
-            DocumentIngestResponse: Ingestion metadata response schema.
+            DocumentIngestResponse: Ingestion metadata response schema containing chunks_created.
 
         Raises:
-            DocumentValidationException: If format is unsupported, empty, or parsing fails.
+            DocumentValidationException: If format is unsupported, empty, or parsing/chunking fails.
         """
+        start_time = time.perf_counter()
         filename = file.filename or "unnamed_document"
         ext = os.path.splitext(filename)[1].lower()
 
@@ -77,10 +81,30 @@ class DocumentService:
                 f"Saved physical file '{filename}' to '{target_path}' (size: {file_size} bytes)"
             )
 
-            metadata = self.parser.parse_document(
+            # Step 1: Parse Document
+            parsed_metadata = self.parser.parse_document(
                 target_path, original_filename=filename
             )
             normalized_type = ext.lstrip(".")
+
+            # Step 2: Chunk Document
+            chunks = self.chunker.split_document(parsed_metadata, document_id=doc_id)
+            chunks_count = len(chunks)
+
+            duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+            # Log metrics without logging text contents
+            logger.info(
+                f"Document '{filename}' chunked successfully: {chunks_count} chunks created in {duration_ms}ms "
+                f"(chunk_size={self.chunker.chunk_size}, overlap={self.chunker.chunk_overlap})",
+                extra={
+                    "document_id": doc_id,
+                    "chunk_count": chunks_count,
+                    "chunk_size": self.chunker.chunk_size,
+                    "chunk_overlap": self.chunker.chunk_overlap,
+                    "duration_ms": duration_ms,
+                },
+            )
 
             record = {
                 "id": doc_id,
@@ -88,21 +112,21 @@ class DocumentService:
                 "type": normalized_type,
                 "file_path": target_path,
                 "size": file_size,
-                "pages": metadata.get("pages", 1),
+                "pages": parsed_metadata.get("pages", 1),
+                "chunks_created": chunks_count,
                 "uploaded_at": datetime.datetime.now(datetime.UTC).isoformat(),
             }
 
             doc_repository.add(record)
             logger.info(
-                f"Successfully registered document '{filename}' (ID: {doc_id}, type: {normalized_type})"
+                f"Successfully registered document '{filename}' (ID: {doc_id}, chunks: {chunks_count})"
             )
 
             return DocumentIngestResponse(
                 id=doc_id,
                 filename=filename,
-                type=normalized_type,
-                size=file_size,
                 status="ingested",
+                chunks_created=chunks_count,
             )
         except DocumentValidationException:
             if os.path.exists(target_path):
@@ -112,7 +136,7 @@ class DocumentService:
             if os.path.exists(target_path):
                 os.remove(target_path)
             logger.error(
-                f"Failed to ingest document '{filename}': {str(exc)}",
+                f"Failed to process and chunk document '{filename}': {str(exc)}",
                 exc_info=True,
             )
             raise DocumentValidationException(
