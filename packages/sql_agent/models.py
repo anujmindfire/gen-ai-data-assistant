@@ -78,3 +78,43 @@ class SQLGenerateResponse(BaseModel):
 
     question: str = Field(..., description="Original user natural language question")
     sql: str = Field(..., description="Generated PostgreSQL query statement")
+
+
+class SQLExecuteRequest(BaseModel):
+    """Request payload for executing SQL pipeline from natural language question."""
+
+    question: str = Field(
+        ...,
+        min_length=1,
+        description="Natural language question to generate, validate, and execute",
+    )
+
+
+class SQLQueryResult(BaseModel):
+    """Structured result of executing a raw SQL query."""
+
+    sql: str = Field(..., description="Executed SQL query statement")
+    columns: list[str] = Field(
+        default_factory=list, description="Array of column names returned by query"
+    )
+    rows: list[list[object]] = Field(
+        default_factory=list, description="Array of data rows"
+    )
+    row_count: int = Field(default=0, description="Total number of returned rows")
+
+
+class SQLExecutionResult(BaseModel):
+    """Structured response payload containing query results for a user question."""
+
+    question: str = Field(..., description="Original user natural language question")
+    sql: str = Field(..., description="Generated and executed SQL statement")
+    columns: list[str] = Field(
+        default_factory=list, description="Array of column names returned by query"
+    )
+    rows: list[list[object]] = Field(
+        default_factory=list, description="Array of data rows"
+    )
+    row_count: int = Field(default=0, description="Total number of returned rows")
+    execution_duration_ms: float = Field(
+        default=0.0, description="Total pipeline execution duration in milliseconds"
+    )
