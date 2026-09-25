@@ -1,7 +1,12 @@
 """Database schema inspection route handler for GET /database/schema."""
 
 from fastapi import APIRouter, Query, status
-from packages.sql_agent.models import DatabaseSchema
+from packages.sql_agent.generator import SQLGeneratorService
+from packages.sql_agent.models import (
+    DatabaseSchema,
+    SQLGenerateRequest,
+    SQLGenerateResponse,
+)
 from packages.sql_agent.schema import SchemaInspectorService
 from packages.sql_agent.validator import SQLValidator, ValidationResult
 from pydantic import BaseModel, Field
@@ -48,3 +53,18 @@ async def validate_sql_query(
     """Validate SQL statement string against read-only security rules."""
     validator = SQLValidator()
     return validator.validate(sql=payload.sql)
+
+
+@router.post(
+    "/generate-sql",
+    response_model=SQLGenerateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate Read-Only SQL from Natural Language",
+    description="Converts natural language question into PostgreSQL SELECT statement using Gemini & database schema.",
+)
+async def generate_sql_from_question(
+    payload: SQLGenerateRequest,
+) -> SQLGenerateResponse:
+    """Generate SQL statement from natural language question without executing it."""
+    generator = SQLGeneratorService()
+    return generator.generate_sql(question=payload.question)

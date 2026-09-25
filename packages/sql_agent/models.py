@@ -61,3 +61,20 @@ class DatabaseSchema(BaseModel):
     inspected_at: str = Field(
         ..., description="ISO 8601 timestamp of schema inspection"
     )
+
+
+class SQLGenerateRequest(BaseModel):
+    """Request payload for SQL generation from natural language question."""
+
+    question: str = Field(
+        ...,
+        min_length=1,
+        description="Natural language question to convert into SQL",
+    )
+
+
+class SQLGenerateResponse(BaseModel):
+    """Structured response payload containing question and generated SQL statement."""
+
+    question: str = Field(..., description="Original user natural language question")
+    sql: str = Field(..., description="Generated PostgreSQL query statement")
