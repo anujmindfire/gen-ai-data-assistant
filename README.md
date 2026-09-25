@@ -83,40 +83,38 @@ genai-data-assistant/
 
 ---
 
-## Document Ingestion & Chunking Strategy
+## Document Pipeline & Gemini Embeddings
 
-### Supported File Formats
-- `.pdf` (Parsed using `PyPDFLoader`)
-- `.docx` (Parsed using `Docx2txtLoader`)
-- `.txt` (Parsed using `TextLoader`)
-- `.md` (Parsed using `TextLoader`)
-
-### Configurable Chunking Configuration
-Documents are parsed and split into normalized text chunks using LangChain's `RecursiveCharacterTextSplitter`.
-
-- **Default Chunk Size (`CHUNK_SIZE`)**: `500` characters
-- **Default Chunk Overlap (`CHUNK_OVERLAP`)**: `100` characters
-
-These settings can be overridden in `.env`:
-```env
-CHUNK_SIZE=500
-CHUNK_OVERLAP=100
-```
-
-### Storage & Chunking Workflow
+### Ingestion Flow
 ```text
 Document Upload
       ↓
 File Storage (data/documents/<uuid>_<filename>)
       ↓
-Document Parser (extracts text & metadata)
+Document Parser (PyPDFLoader, Docx2txtLoader, TextLoader)
       ↓
 Document Chunker (RecursiveCharacterTextSplitter)
+      ↓
+Embedding Generation (GoogleGenerativeAIEmbeddings: text-embedding-004)
       ↓
 Metadata Persistence (PostgreSQL documents table) & API Response
 ```
 
-*Note: In the next feature branch (`feat/gemini-embeddings`), these generated text chunks will be passed to Google Gemini Embeddings and indexed into Qdrant.*
+### Embedding Configuration & Batching
+Vector embeddings are generated using Google Gemini's `text-embedding-004` model. Text chunks are processed in efficient batches to optimize API latency while preserving chunk sequence and metadata.
+
+- **Embedding Model (`GEMINI_EMBEDDING_MODEL`)**: `text-embedding-004`
+- **Batch Size (`EMBEDDING_BATCH_SIZE`)**: `16` chunks per batch
+
+These settings can be overridden in `.env`:
+```env
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+EMBEDDING_BATCH_SIZE=16
+CHUNK_SIZE=500
+CHUNK_OVERLAP=100
+```
+
+*Note: In the next feature branch (`feat/qdrant-indexing`), these generated dense vector embeddings will be indexed into Qdrant vector collections.*
 
 ---
 
@@ -126,7 +124,7 @@ Metadata Persistence (PostgreSQL documents table) & API Response
 |---|---|---|---|
 | `GET` | `/health` | **200 OK** | Health check returning service & Gemini configuration status |
 | `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
-| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk document, and return chunk count |
+| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record and purge physical file from disk |
 
@@ -134,7 +132,7 @@ Metadata Persistence (PostgreSQL documents table) & API Response
 
 ## Usage Examples
 
-### 1. Upload & Chunk a Document
+### 1. Upload, Chunk, & Embed a Document
 
 ```bash
 curl -X POST "http://localhost:8000/documents/ingest" \
@@ -189,7 +187,7 @@ curl -X DELETE "http://localhost:8000/documents/1728275e-c75b-479e-87d8-8aaab5b3
 
 ### Running Tests
 
-Run the Pytest suite (including document chunking tests):
+Run the Pytest suite (including mocked embedding unit tests):
 ```bash
 make test
 ```
