@@ -3,6 +3,7 @@
 from .chunking import DocumentChunker, TextChunk
 from .embeddings import EmbeddingService, EnrichedChunk
 from .ingest import DocumentIngestor, DocumentParser
+from .rag_service import CitationSource, RAGResponse, RAGService
 from .retriever import RetrievalResult, VectorRetriever
 from .vector_store import QdrantVectorStore
 
@@ -16,4 +17,7 @@ __all__ = [
     "QdrantVectorStore",
     "RetrievalResult",
     "VectorRetriever",
+    "RAGService",
+    "RAGResponse",
+    "CitationSource",
 ]

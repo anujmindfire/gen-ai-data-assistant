@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         default=0.5,
         description="Minimum cosine similarity score threshold for retrieved chunks",
     )
+    RAG_MAX_CONTEXT_CHARS: int = Field(
+        default=4000,
+        description="Maximum character limit for retrieved RAG context in LLM prompt",
+    )
 
     @property
     def postgres_url(self) -> str:
