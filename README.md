@@ -146,11 +146,12 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
-### SQL Schema Introspection Workflow
-The database schema introspection service dynamically reflects PostgreSQL database tables, columns, primary keys, and foreign key relationships using SQLAlchemy inspection:
-1. **Dynamic Reflection**: Discovers tables (`customers`, `products`, `orders`), column data types (`INTEGER`, `VARCHAR`, `NUMERIC`), nullability, and primary key constraints.
-2. **Relationship Discovery**: Automatically traces foreign keys (e.g. `orders.customer_id -> customers.id`).
-3. **Thread-Safe Caching**: Caches schema metadata in memory with thread-safe locking and optional `force_refresh` cache invalidation.
+### SQL Schema Introspection & Security Validation Workflow
+1. **Schema Introspection**: The database schema introspection service dynamically reflects PostgreSQL database tables, columns, primary keys, and foreign key relationships using SQLAlchemy inspection with in-memory thread-safe caching.
+2. **AST SQL Validation**: Read-only SQL query safety is enforced using `sqlglot` AST parsing before any execution against PostgreSQL:
+   - **Allowed Queries**: Single `SELECT` statements and `WITH` (CTEs) that evaluate to read-only `SELECT`.
+   - **Disallowed Operations**: `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `REVOKE`, `EXECUTE`, `CALL`, transaction commands (`BEGIN`, `COMMIT`, `ROLLBACK`), and multi-statement queries separated by semicolons.
+   - **Security Rationale**: Prevents destructive operations, data manipulation, schema alterations, stored procedure calls, and SQL injection prompt bypasses at the AST level prior to PostgreSQL routing.
 
 ---
 
@@ -165,6 +166,7 @@ The database schema introspection service dynamically reflects PostgreSQL databa
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
 | `POST` | `/documents/search` | **200 OK** | Semantic document similarity search endpoint returning ranked chunks with metadata |
 | `GET` | `/database/schema` | **200 OK** | Dynamic database schema introspection endpoint returning tables, columns, & relationships |
+| `POST` | `/database/validate-sql` | **200 OK** | Validates input SQL statement for read-only SELECT compliance using AST parsing |
 
 ---
 
@@ -241,7 +243,10 @@ curl -X POST "http://localhost:8000/documents/search" \
       "text": "Employees receive 20 annual leave days per calendar year.",
       "score": 0.9342
     }
-  ],
+  ]
+}
+```
+
 ### 5. RAG Chat Endpoint (`POST /chat`)
 
 ```bash
@@ -261,7 +266,10 @@ curl -X POST "http://localhost:8000/chat" \
       "chunk_index": 1
     }
   ],
-  "provider": "gemini",
+  "provider": "gemini"
+}
+```
+
 ### 6. Get Database Schema (`GET /database/schema`)
 
 ```bash
@@ -281,35 +289,36 @@ curl -X GET "http://localhost:8000/database/schema?force_refresh=false"
       ],
       "primary_keys": ["id"],
       "foreign_keys": []
-    },
-    {
-      "name": "orders",
-      "columns": [
-        {"name": "id", "type": "INTEGER", "nullable": false, "primary_key": true, "default": null},
-        {"name": "customer_id", "type": "INTEGER", "nullable": false, "primary_key": false, "default": null}
-      ],
-      "primary_keys": ["id"],
-      "foreign_keys": [
-        {
-          "from_table": "orders",
-          "from_column": "customer_id",
-          "to_table": "customers",
-          "to_column": "id",
-          "constraint_name": "fk_orders_customer"
-        }
-      ]
     }
   ],
-  "relationships": [
-    {
-      "from_table": "orders",
-      "from_column": "customer_id",
-      "to_table": "customers",
-      "to_column": "id",
-      "constraint_name": "fk_orders_customer"
-    }
-  ],
+  "relationships": [],
   "inspected_at": "2026-09-25T12:00:00.000000+00:00"
+}
+```
+
+### 7. Validate SQL Query (`POST /database/validate-sql`)
+
+```bash
+curl -X POST "http://localhost:8000/database/validate-sql" \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "SELECT * FROM customers;"}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "valid": true,
+  "reason": "Query passed read-only validation.",
+  "statement_type": "SELECT"
+}
+```
+
+**Destructive Query Example Response**:
+```json
+{
+  "valid": false,
+  "reason": "Disallowed SQL statement type 'DELETE'. Only read-only SELECT statements are permitted.",
+  "statement_type": "DELETE"
 }
 ```
 
@@ -319,7 +328,7 @@ curl -X GET "http://localhost:8000/database/schema?force_refresh=false"
 
 ### Running Tests
 
-Run the Pytest suite (including mocked embedding unit tests):
+Run the Pytest suite (including SQL validator unit tests):
 ```bash
 make test
 ```
@@ -331,3 +340,4 @@ Verify and fix code formatting using Ruff:
 make lint
 make format
 ```
+

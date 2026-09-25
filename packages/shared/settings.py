@@ -97,6 +97,16 @@ class Settings(BaseSettings):
         description="Maximum character limit for retrieved RAG context in LLM prompt",
     )
 
+    # SQL Validator settings
+    SQL_ALLOW_CTE_SELECT_ONLY: bool = Field(
+        default=True,
+        description="Allow CTE WITH statements that resolve to SELECT statements",
+    )
+    SQL_MAX_LENGTH: int = Field(
+        default=5000,
+        description="Maximum character length limit for input SQL statements",
+    )
+
     @property
     def postgres_url(self) -> str:
         """Construct PostgreSQL async connection URL for SQLAlchemy."""
