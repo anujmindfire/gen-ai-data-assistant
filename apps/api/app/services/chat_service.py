@@ -4,7 +4,6 @@ import time
 
 from apps.api.app.core.exceptions import GeminiAPIException, GeminiConfigException
 from apps.api.app.models.chat import ChatResponse
-from packages.shared.gemini import chat as gemini_chat
 from packages.shared.logging import get_logger
 from packages.shared.settings import settings
 
@@ -37,21 +36,37 @@ class ChatService:
         model_name = settings.GEMINI_MODEL
 
         try:
-            logger.info(f"Dispatching chat message to Gemini model: {model_name}")
-            answer = gemini_chat(prompt=message)
+            logger.info(
+                f"Dispatching chat message to RAG Service with model: {model_name}"
+            )
+            from packages.rag.rag_service import RAGService
+
+            rag_service = RAGService()
+            rag_response = rag_service.answer_question(question=message)
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
+            sources_list = [
+                {
+                    "filename": src.filename,
+                    "page": src.page,
+                    "chunk_index": src.chunk_index,
+                }
+                for src in rag_response.sources
+            ]
+
             logger.info(
-                f"Gemini chat response generated in {duration_ms}ms (model: {model_name})",
+                f"RAG chat response generated in {duration_ms}ms (model: {model_name}, sources: {len(sources_list)})",
                 extra={
                     "model": model_name,
                     "duration_ms": duration_ms,
+                    "sources_count": len(sources_list),
                     "status": "success",
                 },
             )
 
             return ChatResponse(
-                answer=answer,
+                answer=rag_response.answer,
+                sources=sources_list,
                 provider="gemini",
                 model=model_name,
             )

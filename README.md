@@ -122,14 +122,14 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
-### Semantic Document Retrieval Workflow
-Given a user query (e.g., *"What is the leave policy?"*), the system:
-1. Generates a 768-dimensional query vector embedding using Gemini (`text-embedding-004`).
-2. Performs cosine similarity search against Qdrant collection `company_documents`.
-3. Returns ranked document chunks with metadata, text content, and similarity scores.
-
-- **Top-K Limit (`RAG_TOP_K`)**: `5` nearest neighbor chunks
-- **Similarity Threshold (`RAG_SCORE_THRESHOLD`)**: `0.5` minimum score cutoff
+### RAG Chat Workflow with Source Citations
+When a user submits a question to `POST /chat`:
+1. **Semantic Retrieval**: Generates query vector embedding and searches Qdrant for matching document chunks.
+2. **Context Assembly & Character Safeguard**: Formats retrieved chunks while respecting `RAG_MAX_CONTEXT_CHARS` (default: 4000 characters).
+3. **Grounded Generation**: Passes strictly formatted document context to Gemini with anti-hallucination instructions.
+4. **No-Context Safeguard**: If no relevant documents exist or retrieval returns empty results, returns:
+   `"I couldn't find relevant information in the uploaded documents."` with `sources: []`.
+5. **Source Citations**: Attaches structured document source metadata (`filename`, `page`, `chunk_index`).
 
 Environment configuration (`.env`):
 ```env
@@ -141,25 +141,10 @@ QDRANT_COLLECTION=company_documents
 QDRANT_VECTOR_SIZE=768
 RAG_TOP_K=5
 RAG_SCORE_THRESHOLD=0.5
+RAG_MAX_CONTEXT_CHARS=4000
 CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
-
-### Qdrant Point Payload Schema
-Each text chunk is indexed as a Qdrant point vector with complete payload metadata for future retrieval:
-```json
-{
-  "document_id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
-  "chunk_id": "00000000-0000-0000-0000-000000000001",
-  "filename": "employee_handbook.pdf",
-  "file_type": "pdf",
-  "page": 1,
-  "chunk_index": 0,
-  "text": "Extracted text chunk content body..."
-}
-```
-
-*Note: In the next feature branch (`feat/rag-chat`), conversational RAG answer generation using context documents will be implemented.*
 
 ---
 
@@ -168,7 +153,7 @@ Each text chunk is indexed as a Qdrant point vector with complete payload metada
 | Method | Endpoint | Status | Description |
 |---|---|---|---|
 | `GET` | `/health` | **200 OK** | Health check returning service, Qdrant connectivity, & Gemini configuration status |
-| `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
+| `POST` | `/chat` | **200 OK** | RAG-powered chat endpoint returning grounded Gemini answer with source citations |
 | `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, index in Qdrant, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
@@ -250,7 +235,27 @@ curl -X POST "http://localhost:8000/documents/search" \
       "score": 0.9342
     }
   ],
-  "total_results": 1
+### 5. RAG Chat Endpoint (`POST /chat`)
+
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is the refund policy?"}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "answer": "Refunds are allowed within 30 days of purchase upon presenting original proof of purchase.",
+  "sources": [
+    {
+      "filename": "refund_policy.pdf",
+      "page": 3,
+      "chunk_index": 1
+    }
+  ],
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
 }
 ```
 

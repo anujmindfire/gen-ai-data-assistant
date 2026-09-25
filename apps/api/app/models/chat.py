@@ -13,9 +13,22 @@ class ChatRequest(BaseModel):
     )
 
 
+class CitationSource(BaseModel):
+    """Document source citation metadata for chat response."""
+
+    filename: str = Field(..., description="Document filename")
+    page: int = Field(default=1, description="Page number of cited content")
+    chunk_index: int | None = Field(
+        default=None, description="Optional zero-based chunk index"
+    )
+
+
 class ChatResponse(BaseModel):
     """Response payload returned by /chat endpoint."""
 
     answer: str = Field(..., description="Generated answer text from Gemini")
+    sources: list[CitationSource] = Field(
+        default_factory=list, description="Array of document source citations"
+    )
     provider: str = Field(default="gemini", description="LLM service provider name")
     model: str = Field(..., description="Gemini model identifier used")
