@@ -3,7 +3,7 @@
 from .chunking import DocumentChunker, TextChunk
 from .embeddings import EmbeddingService, EnrichedChunk
 from .ingest import DocumentIngestor, DocumentParser
-from .retriever import VectorRetriever
+from .retriever import RetrievalResult, VectorRetriever
 from .vector_store import QdrantVectorStore
 
 __all__ = [
@@ -14,5 +14,6 @@ __all__ = [
     "EmbeddingService",
     "EnrichedChunk",
     "QdrantVectorStore",
+    "RetrievalResult",
     "VectorRetriever",
 ]

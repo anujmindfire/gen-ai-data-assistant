@@ -122,6 +122,29 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
+### Semantic Document Retrieval Workflow
+Given a user query (e.g., *"What is the leave policy?"*), the system:
+1. Generates a 768-dimensional query vector embedding using Gemini (`text-embedding-004`).
+2. Performs cosine similarity search against Qdrant collection `company_documents`.
+3. Returns ranked document chunks with metadata, text content, and similarity scores.
+
+- **Top-K Limit (`RAG_TOP_K`)**: `5` nearest neighbor chunks
+- **Similarity Threshold (`RAG_SCORE_THRESHOLD`)**: `0.5` minimum score cutoff
+
+Environment configuration (`.env`):
+```env
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+EMBEDDING_BATCH_SIZE=16
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+QDRANT_COLLECTION=company_documents
+QDRANT_VECTOR_SIZE=768
+RAG_TOP_K=5
+RAG_SCORE_THRESHOLD=0.5
+CHUNK_SIZE=500
+CHUNK_OVERLAP=100
+```
+
 ### Qdrant Point Payload Schema
 Each text chunk is indexed as a Qdrant point vector with complete payload metadata for future retrieval:
 ```json
@@ -136,7 +159,7 @@ Each text chunk is indexed as a Qdrant point vector with complete payload metada
 }
 ```
 
-*Note: In the next feature branch (`feat/rag-retrieval`), vector retrieval and semantic search will be implemented.*
+*Note: In the next feature branch (`feat/rag-chat`), conversational RAG answer generation using context documents will be implemented.*
 
 ---
 
@@ -149,6 +172,7 @@ Each text chunk is indexed as a Qdrant point vector with complete payload metada
 | `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, index in Qdrant, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
+| `POST` | `/documents/search` | **200 OK** | Semantic document similarity search endpoint returning ranked chunks with metadata |
 
 ---
 
@@ -200,6 +224,33 @@ curl -X DELETE "http://localhost:8000/documents/1728275e-c75b-479e-87d8-8aaab5b3
 ```json
 {
   "message": "Document deleted"
+}
+```
+
+### 4. Semantic Search Test Endpoint
+
+```bash
+curl -X POST "http://localhost:8000/documents/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What is the leave policy?", "top_k": 3}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "results": [
+    {
+      "chunk_id": "00000000-0000-0000-0000-000000000001",
+      "document_id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
+      "filename": "employee_handbook.pdf",
+      "file_type": "pdf",
+      "page": 14,
+      "chunk_index": 0,
+      "text": "Employees receive 20 annual leave days per calendar year.",
+      "score": 0.9342
+    }
+  ],
+  "total_results": 1
 }
 ```
 

@@ -83,6 +83,16 @@ class Settings(BaseSettings):
         description="Dimensionality of vector embeddings (Gemini text-embedding-004 output size)",
     )
 
+    # RAG Retrieval settings
+    RAG_TOP_K: int = Field(
+        default=5,
+        description="Default top-k number of matching chunks to retrieve",
+    )
+    RAG_SCORE_THRESHOLD: float = Field(
+        default=0.5,
+        description="Minimum cosine similarity score threshold for retrieved chunks",
+    )
+
     @property
     def postgres_url(self) -> str:
         """Construct PostgreSQL connection URL for SQLAlchemy."""

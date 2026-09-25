@@ -263,6 +263,100 @@ class QdrantVectorStore:
                 message=f"Failed to delete document vectors from Qdrant: {str(exc)}"
             ) from exc
 
+    def search(
+        self,
+        query_vector: list[float],
+        limit: int = 5,
+        score_threshold: float | None = None,
+        document_id: str | None = None,
+        filename: str | None = None,
+        file_type: str | None = None,
+        collection_name: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Perform similarity search on Qdrant vector collection with optional filtering.
+
+        Args:
+            query_vector: Dense vector embedding array of search query.
+            limit: Maximum number of nearest neighbor points to return.
+            score_threshold: Minimum cosine similarity score cutoff.
+            document_id: Optional document ID metadata filter.
+            filename: Optional filename metadata filter.
+            file_type: Optional file type metadata filter.
+            collection_name: Optional override collection name.
+
+        Returns:
+            list[dict[str, Any]]: List of dictionary payloads with similarity score.
+        """
+        target_name = collection_name or self.collection_name
+        client = self.get_client()
+
+        if not self.collection_exists(collection_name=target_name):
+            logger.info(
+                f"Collection '{target_name}' does not exist. Returning empty search results."
+            )
+            return []
+
+        must_conditions: list[models.FieldCondition] = []
+        if document_id:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchValue(value=document_id),
+                )
+            )
+        if filename:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="filename",
+                    match=models.MatchValue(value=filename),
+                )
+            )
+        if file_type:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="file_type",
+                    match=models.MatchValue(value=file_type),
+                )
+            )
+
+        query_filter = models.Filter(must=must_conditions) if must_conditions else None
+
+        try:
+            if hasattr(client, "query_points"):
+                response = client.query_points(
+                    collection_name=target_name,
+                    query=query_vector,
+                    limit=limit,
+                    score_threshold=score_threshold,
+                    query_filter=query_filter,
+                )
+                points = getattr(response, "points", response)
+            else:
+                points = client.search(
+                    collection_name=target_name,
+                    query_vector=query_vector,
+                    limit=limit,
+                    score_threshold=score_threshold,
+                    query_filter=query_filter,
+                )
+
+            results: list[dict[str, Any]] = []
+            for pt in points:
+                payload = dict(getattr(pt, "payload", {}) or {})
+                score = float(getattr(pt, "score", 0.0))
+                payload["score"] = score
+                results.append(payload)
+
+            return results
+        except Exception as exc:
+            logger.error(
+                f"Qdrant vector search failed on collection '{target_name}': {str(exc)}",
+                exc_info=True,
+            )
+            raise QdrantAPIException(
+                message=f"Qdrant vector similarity search failed: {str(exc)}"
+            ) from exc
+
     def health_check(self, collection_name: str | None = None) -> dict[str, Any]:
         """Verify Qdrant server connectivity and collection availability.
 
