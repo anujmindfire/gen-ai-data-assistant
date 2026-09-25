@@ -146,7 +146,7 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
-### SQL Schema Introspection, Validation & Text-to-SQL Generation Workflow
+### SQL Schema Introspection, Validation, Generation & Execution Pipeline
 1. **Schema Introspection**: The database schema introspection service dynamically reflects PostgreSQL database tables, columns, primary keys, and foreign key relationships using SQLAlchemy inspection with in-memory thread-safe caching.
 2. **AST SQL Validation**: Read-only SQL query safety is enforced using `sqlglot` AST parsing before any execution against PostgreSQL:
    - **Allowed Queries**: Single `SELECT` statements and `WITH` (CTEs) that evaluate to read-only `SELECT`.
@@ -155,6 +155,10 @@ CHUNK_OVERLAP=100
 3. **Natural Language to SQL Generation**: Converts business questions into valid PostgreSQL queries using Google Gemini:
    - **Schema-Aware Prompting**: Inject dynamic table schemas, column data types, primary keys, and foreign keys directly into the Gemini prompt instructions.
    - **Output Cleaning**: Strips markdown code block fences (` ```sql ... ``` `) and normalizes SQL text without executing queries against PostgreSQL.
+4. **Safe SQL Query Execution**: Executes validated `SELECT` queries against PostgreSQL:
+   - **Validation-Before-Execution Guarantee**: Every query passes through AST validation before reaching the database; invalid or destructive queries are blocked immediately.
+   - **Configurable Row Limits**: Capped at `MAX_SQL_ROWS` (default: 100) to prevent oversized responses.
+   - **Structured Query Logging**: Logs timestamp, natural language question, generated SQL, validation outcome, row count, and execution duration.
 
 ---
 
@@ -171,6 +175,8 @@ CHUNK_OVERLAP=100
 | `GET` | `/database/schema` | **200 OK** | Dynamic database schema introspection endpoint returning tables, columns, & relationships |
 | `POST` | `/database/validate-sql` | **200 OK** | Validates input SQL statement for read-only SELECT compliance using AST parsing |
 | `POST` | `/database/generate-sql` | **200 OK** | Generates read-only PostgreSQL query statement from natural language question using Gemini |
+| `POST` | `/database/query` | **200 OK** | Full pipeline: generates, validates, and executes read-only SQL query returning structured rows |
+
 
 ---
 
@@ -342,13 +348,36 @@ curl -X POST "http://localhost:8000/database/generate-sql" \
 }
 ```
 
+### 9. Execute Natural Language SQL Query Pipeline (`POST /database/query`)
+
+```bash
+curl -X POST "http://localhost:8000/database/query" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Top 5 customers by revenue"}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "question": "Top 5 customers by revenue",
+  "sql": "SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;",
+  "columns": ["name", "revenue"],
+  "rows": [
+    ["Alice", 1200],
+    ["Bob", 950]
+  ],
+  "row_count": 2,
+  "execution_duration_ms": 14.2
+}
+```
+
 ---
 
 ## Development & Testing
 
 ### Running Tests
 
-Run the Pytest suite (including SQL generator & validator unit tests):
+Run the Pytest suite (including SQL executor, generator, and validator unit tests):
 ```bash
 make test
 ```
@@ -360,5 +389,6 @@ Verify and fix code formatting using Ruff:
 make lint
 make format
 ```
+
 
 

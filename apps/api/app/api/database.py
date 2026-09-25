@@ -1,9 +1,12 @@
 """Database schema inspection route handler for GET /database/schema."""
 
 from fastapi import APIRouter, Query, status
+from packages.sql_agent.executor import SQLExecutorService
 from packages.sql_agent.generator import SQLGeneratorService
 from packages.sql_agent.models import (
     DatabaseSchema,
+    SQLExecuteRequest,
+    SQLExecutionResult,
     SQLGenerateRequest,
     SQLGenerateResponse,
 )
@@ -68,3 +71,18 @@ async def generate_sql_from_question(
     """Generate SQL statement from natural language question without executing it."""
     generator = SQLGeneratorService()
     return generator.generate_sql(question=payload.question)
+
+
+@router.post(
+    "/query",
+    response_model=SQLExecutionResult,
+    status_code=status.HTTP_200_OK,
+    summary="Generate, Validate, and Execute SQL Query",
+    description="Full Text-to-SQL execution pipeline: converts natural language question to SQL, validates read-only AST compliance, executes against PostgreSQL, and returns structured result rows.",
+)
+async def execute_natural_language_query(
+    payload: SQLExecuteRequest,
+) -> SQLExecutionResult:
+    """Execute complete Text-to-SQL pipeline for a natural language user question."""
+    executor = SQLExecutorService()
+    return executor.execute_question(question=payload.question)

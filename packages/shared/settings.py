@@ -97,7 +97,7 @@ class Settings(BaseSettings):
         description="Maximum character limit for retrieved RAG context in LLM prompt",
     )
 
-    # SQL Validator settings
+    # SQL Validator & Execution settings
     SQL_ALLOW_CTE_SELECT_ONLY: bool = Field(
         default=True,
         description="Allow CTE WITH statements that resolve to SELECT statements",
@@ -105,6 +105,10 @@ class Settings(BaseSettings):
     SQL_MAX_LENGTH: int = Field(
         default=5000,
         description="Maximum character length limit for input SQL statements",
+    )
+    MAX_SQL_ROWS: int = Field(
+        default=100,
+        description="Maximum row count limit for SQL query execution results",
     )
 
     @property

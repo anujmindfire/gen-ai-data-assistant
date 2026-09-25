@@ -1,12 +1,16 @@
 from .agent import SQLAgent
 from .database import DatabaseInspector, DatabaseManager, db_manager, get_db_engine
+from .executor import SQLExecutorService
 from .generator import SQLGeneratorService, clean_generated_sql
 from .models import (
     ColumnSchema,
     DatabaseSchema,
     RelationshipSchema,
+    SQLExecuteRequest,
+    SQLExecutionResult,
     SQLGenerateRequest,
     SQLGenerateResponse,
+    SQLQueryResult,
     TableSchema,
 )
 from .schema import SchemaInspectorService, schema_service
@@ -29,5 +33,9 @@ __all__ = [
     "clean_generated_sql",
     "SQLGenerateRequest",
     "SQLGenerateResponse",
+    "SQLExecutorService",
+    "SQLExecuteRequest",
+    "SQLQueryResult",
+    "SQLExecutionResult",
     "SQLAgent",
 ]
