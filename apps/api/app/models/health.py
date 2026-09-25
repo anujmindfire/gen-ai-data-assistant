@@ -24,6 +24,9 @@ class HealthResponse(BaseModel):
     status: str = Field(
         default="healthy", description="Current health status of API service"
     )
+    version: str = Field(
+        default="1.0.0", description="Application service semantic version string"
+    )
     services: ServiceStatus = Field(
         description="Services readiness and configuration status"
     )
