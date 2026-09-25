@@ -86,8 +86,21 @@ class QdrantConfigException(Exception):
         super().__init__(self.message)
 
 
+class DatabaseException(Exception):
+    """Exception raised when database connection or inspection operation fails."""
+
+    def __init__(
+        self,
+        message: str = "Database operation failed.",
+        code: str = "DATABASE_ERROR",
+    ) -> None:
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register custom JSON exception handlers for HTTP, validation, Gemini, Qdrant, and document errors.
+    """Register custom JSON exception handlers for HTTP, validation, Gemini, Qdrant, DB, and document errors.
 
     Args:
         app: FastAPI instance.
@@ -183,6 +196,22 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """Handler for invalid Qdrant configuration."""
         logger.error(f"QdrantConfigException: {exc.message} - Path: {request.url.path}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                }
+            },
+        )
+
+    @app.exception_handler(DatabaseException)
+    async def database_exception_handler(
+        request: Request, exc: DatabaseException
+    ) -> JSONResponse:
+        """Handler for database connection or inspection failures."""
+        logger.error(f"DatabaseException: {exc.message} - Path: {request.url.path}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
