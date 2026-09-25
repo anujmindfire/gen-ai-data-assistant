@@ -99,9 +99,17 @@ class Settings(BaseSettings):
 
     @property
     def postgres_url(self) -> str:
-        """Construct PostgreSQL connection URL for SQLAlchemy."""
+        """Construct PostgreSQL async connection URL for SQLAlchemy."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def postgres_sync_url(self) -> str:
+        """Construct PostgreSQL synchronous connection URL for SQLAlchemy inspection."""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

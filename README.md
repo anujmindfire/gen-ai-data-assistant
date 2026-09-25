@@ -146,6 +146,12 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
+### SQL Schema Introspection Workflow
+The database schema introspection service dynamically reflects PostgreSQL database tables, columns, primary keys, and foreign key relationships using SQLAlchemy inspection:
+1. **Dynamic Reflection**: Discovers tables (`customers`, `products`, `orders`), column data types (`INTEGER`, `VARCHAR`, `NUMERIC`), nullability, and primary key constraints.
+2. **Relationship Discovery**: Automatically traces foreign keys (e.g. `orders.customer_id -> customers.id`).
+3. **Thread-Safe Caching**: Caches schema metadata in memory with thread-safe locking and optional `force_refresh` cache invalidation.
+
 ---
 
 ## API Endpoints & Specification
@@ -158,6 +164,7 @@ CHUNK_OVERLAP=100
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
 | `POST` | `/documents/search` | **200 OK** | Semantic document similarity search endpoint returning ranked chunks with metadata |
+| `GET` | `/database/schema` | **200 OK** | Dynamic database schema introspection endpoint returning tables, columns, & relationships |
 
 ---
 
@@ -255,7 +262,54 @@ curl -X POST "http://localhost:8000/chat" \
     }
   ],
   "provider": "gemini",
-  "model": "gemini-2.5-flash"
+### 6. Get Database Schema (`GET /database/schema`)
+
+```bash
+curl -X GET "http://localhost:8000/database/schema?force_refresh=false"
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "database_name": "assistant",
+  "tables": [
+    {
+      "name": "customers",
+      "columns": [
+        {"name": "id", "type": "INTEGER", "nullable": false, "primary_key": true, "default": null},
+        {"name": "name", "type": "VARCHAR", "nullable": false, "primary_key": false, "default": null}
+      ],
+      "primary_keys": ["id"],
+      "foreign_keys": []
+    },
+    {
+      "name": "orders",
+      "columns": [
+        {"name": "id", "type": "INTEGER", "nullable": false, "primary_key": true, "default": null},
+        {"name": "customer_id", "type": "INTEGER", "nullable": false, "primary_key": false, "default": null}
+      ],
+      "primary_keys": ["id"],
+      "foreign_keys": [
+        {
+          "from_table": "orders",
+          "from_column": "customer_id",
+          "to_table": "customers",
+          "to_column": "id",
+          "constraint_name": "fk_orders_customer"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_table": "orders",
+      "from_column": "customer_id",
+      "to_table": "customers",
+      "to_column": "id",
+      "constraint_name": "fk_orders_customer"
+    }
+  ],
+  "inspected_at": "2026-09-25T12:00:00.000000+00:00"
 }
 ```
 
