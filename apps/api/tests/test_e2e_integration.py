@@ -99,6 +99,7 @@ def test_e2e_sql_pipeline_flow(client: TestClient) -> None:
             )
         ],
         relationships=[],
+        inspected_at="2026-09-25T12:00:00+00:00",
     )
 
     mock_query_result = SQLExecutionResult(
