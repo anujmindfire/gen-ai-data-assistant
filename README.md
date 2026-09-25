@@ -6,32 +6,42 @@ A scalable, production-ready monorepo boilerplate for a **Generative AI Data Ass
 
 ## Architecture Overview
 
-The GenAI Data Assistant acts as an intelligent router and orchestration engine. Incoming user queries are parsed by a LangGraph Router node, which delegates tasks to either:
-1. **RAG Pipeline**: Retrieves vector context from Qdrant for document/unstructured data queries.
-2. **SQL Agent**: Formulates and executes safe SQL queries against PostgreSQL for structured business analytics (e.g., revenue queries on customers, products, and orders).
-
-Direct `/chat` requests are powered by **Google Gemini** (`gemini-3.6-flash`).
+The GenAI Data Assistant uses a **LangGraph StateGraph DAG** to orchestrate incoming requests. Incoming user questions submitted to `POST /chat` are evaluated by a **LangGraph Router node**, which dynamically routes execution across three specialized execution branches:
+1. **RAG Branch (`route: "rag"`)**: Retrieves vector embeddings from Qdrant for unstructured document and policy questions (e.g. employee handbooks, refund rules).
+2. **SQL Agent Branch (`route: "sql"`)**: Formulates, validates, and executes read-only PostgreSQL queries for structured business analytics (e.g. revenue, order counts, top spenders).
+3. **Combined Branch (`route: "combined"`)**: Executes both document context retrieval and database analytics, fusing both sources into a unified response using Google Gemini (`gemini-3.6-flash`).
 
 ```mermaid
 flowchart TD
-    User([User / Client]) -->|HTTP Request| FastAPI[FastAPI App]
-    FastAPI -->|Invoke Workflow| Router[LangGraph Router Node]
+    User([User / Client]) -->|POST /chat| FastAPI[FastAPI App]
+    FastAPI -->|Invoke StateGraph| Router[LangGraph Router Node]
     
-    subgraph Execution Routing
-        Router -->|Unstructured Document Query| RAG[RAG Pipeline]
-        Router -->|Structured Data Query| SQLAgent[SQL Agent]
+    subgraph Routing Decision
+        Router -->|Unstructured Policy Question| RAG[RAG Node]
+        Router -->|Structured Analytics Question| SQL[SQL Node]
+        Router -->|Dual Domain Question| Combined[Combined Node]
     end
     
     RAG -->|Vector Search| Qdrant[(Qdrant Vector DB)]
-    SQLAgent -->|SQL Queries| PostgreSQL[(PostgreSQL DB)]
+    SQL -->|Validate & Query| PostgreSQL[(PostgreSQL DB)]
     
-    Qdrant -->|Context Docs| Combine[Combine & Synthesize Node]
-    PostgreSQL -->|Query Results| Combine
+    Combined -->|1. Document Search| Qdrant
+    Combined -->|2. Database Query| PostgreSQL
+    Combined -->|3. Fuse Both Contexts| Gemini[Google Gemini API]
     
-    Combine -->|Prompt & Context| Gemini[Google Gemini API]
-    Gemini -->|LLM Response| Respond[Respond Node]
-    Respond -->|HTTP Response| User
+    RAG -->|Formatted Answer + Sources| Response[Chat Response]
+    SQL -->|Structured Rows Answer| Response
+    Gemini -->|Unified Synthesized Answer| Response
+    Response -->|JSON Payload| User
 ```
+
+### Intelligent Routing Decision Matrix
+
+| Question Example | Classified Route | Target Execution Node | Output Payload |
+|---|---|---|---|
+| *"What is the leave policy?"* | `rag` | `RAG Node` | Document answer + citations (`sources`) |
+| *"Top five customers by revenue?"* | `sql` | `SQL Node` | Database query summary table |
+| *"What is the refund policy and how much was refunded last month?"* | `combined` | `Combined Node` | Unified synthesized answer + document citations |
 
 ---
 
@@ -257,8 +267,9 @@ curl -X POST "http://localhost:8000/documents/search" \
 }
 ```
 
-### 5. RAG Chat Endpoint (`POST /chat`)
+### 5. LangGraph Intelligent Chat Endpoint (`POST /chat`)
 
+#### RAG Route Example (`route: "rag"`):
 ```bash
 curl -X POST "http://localhost:8000/chat" \
   -H "Content-Type: application/json" \
@@ -269,6 +280,7 @@ curl -X POST "http://localhost:8000/chat" \
 ```json
 {
   "answer": "Refunds are allowed within 30 days of purchase upon presenting original proof of purchase.",
+  "route": "rag",
   "sources": [
     {
       "filename": "refund_policy.pdf",
@@ -276,7 +288,50 @@ curl -X POST "http://localhost:8000/chat" \
       "chunk_index": 1
     }
   ],
-  "provider": "gemini"
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}
+```
+
+#### SQL Route Example (`route: "sql"`):
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Top 5 customers by revenue"}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "answer": "Based on database query (`SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;`):\n\nColumns: [name | revenue]\nData Rows:\nAlice | 1200\nBob | 950",
+  "route": "sql",
+  "sources": [],
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}
+```
+
+#### Combined Route Example (`route: "combined"`):
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is the refund policy and how much was refunded last month?"}'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "answer": "According to company policy, refunds are permitted within 30 days of purchase. Based on database analytics, a total of $450.00 was refunded across 3 orders last month.",
+  "route": "combined",
+  "sources": [
+    {
+      "filename": "refund_policy.pdf",
+      "page": 3,
+      "chunk_index": 1
+    }
+  ],
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
 }
 ```
 

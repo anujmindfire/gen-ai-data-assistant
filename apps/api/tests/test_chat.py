@@ -8,20 +8,24 @@ from fastapi.testclient import TestClient
 def test_chat_endpoint_returns_200_and_gemini_response(
     client: TestClient,
 ) -> None:
-    """Test POST /chat returns HTTP 200 OK with mocked Gemini response."""
-    from packages.rag.rag_service import RAGResponse
-
-    mock_resp = RAGResponse(answer="Hello! I am your AI assistant.", sources=[])
+    """Test POST /chat returns HTTP 200 OK with mocked LangGraph response."""
+    mock_state = {
+        "question": "Hello",
+        "route": "rag",
+        "final_answer": "Hello! I am your AI assistant.",
+        "sources": [],
+    }
 
     with patch(
-        "packages.rag.rag_service.RAGService.answer_question",
-        return_value=mock_resp,
+        "packages.graph.workflow.graph_app.ainvoke",
+        return_value=mock_state,
     ):
         response = client.post("/chat", json={"message": "Hello"})
 
         assert response.status_code == 200
         data = response.json()
         assert data["answer"] == "Hello! I am your AI assistant."
+        assert data["route"] == "rag"
         assert data["provider"] == "gemini"
         assert "model" in data
         assert "sources" in data
@@ -32,7 +36,7 @@ def test_chat_endpoint_handles_gemini_api_failure(
 ) -> None:
     """Test POST /chat returns HTTP 502 BAD GATEWAY on Gemini API exception."""
     with patch(
-        "packages.rag.rag_service.RAGService.answer_question",
+        "packages.graph.workflow.graph_app.ainvoke",
         side_effect=Exception("API connection timeout"),
     ):
         response = client.post("/chat", json={"message": "Hello"})
@@ -41,7 +45,7 @@ def test_chat_endpoint_handles_gemini_api_failure(
         data = response.json()
         assert "error" in data
         assert data["error"]["code"] == "GEMINI_API_ERROR"
-        assert data["error"]["message"] == "Unable to reach Gemini."
+        assert "Unable to complete request" in data["error"]["message"]
 
 
 def test_chat_endpoint_invalid_request_body_returns_422(
