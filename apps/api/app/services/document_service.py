@@ -19,6 +19,7 @@ from packages.rag.chunking import DocumentChunker
 from packages.rag.ingest import SUPPORTED_EXTENSIONS, DocumentParser
 from packages.shared.db import doc_repository
 from packages.shared.logging import get_logger
+from packages.shared.settings import settings
 
 logger = get_logger(__name__)
 
@@ -91,15 +92,27 @@ class DocumentService:
             chunks = self.chunker.split_document(parsed_metadata, document_id=doc_id)
             chunks_count = len(chunks)
 
+            # Step 3: Embed Chunks (Document -> Parsed -> Chunked -> Embedded)
+            if settings.is_gemini_configured:
+                from packages.rag.embeddings import EmbeddingService
+
+                embedding_service = EmbeddingService()
+                enriched_chunks = embedding_service.embed_chunks(chunks)
+                embedded_count = len(enriched_chunks)
+            else:
+                embedded_count = 0
+
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
-            # Log metrics without logging text contents
+            # Log metrics without logging text contents or embeddings
             logger.info(
-                f"Document '{filename}' chunked successfully: {chunks_count} chunks created in {duration_ms}ms "
+                f"Document '{filename}' processed successfully: {chunks_count} chunks created, "
+                f"{embedded_count} chunks embedded in {duration_ms}ms "
                 f"(chunk_size={self.chunker.chunk_size}, overlap={self.chunker.chunk_overlap})",
                 extra={
                     "document_id": doc_id,
                     "chunk_count": chunks_count,
+                    "embedded_count": embedded_count,
                     "chunk_size": self.chunker.chunk_size,
                     "chunk_overlap": self.chunker.chunk_overlap,
                     "duration_ms": duration_ms,

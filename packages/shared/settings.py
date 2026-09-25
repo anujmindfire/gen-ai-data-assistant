@@ -27,6 +27,14 @@ class Settings(BaseSettings):
         default="gemini-2.5-flash",
         description="Default Gemini model to use",
     )
+    GEMINI_EMBEDDING_MODEL: str = Field(
+        default="text-embedding-004",
+        description="Google Gemini embedding model to use",
+    )
+    EMBEDDING_BATCH_SIZE: int = Field(
+        default=16,
+        description="Maximum number of text chunks per embedding batch API call",
+    )
 
     # Document Chunking settings
     CHUNK_SIZE: int = Field(
