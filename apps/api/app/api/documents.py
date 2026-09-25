@@ -5,6 +5,8 @@ from apps.api.app.models.documents import (
     DocumentDeleteResponse,
     DocumentIngestResponse,
     DocumentItem,
+    DocumentSearchRequest,
+    DocumentSearchResponse,
 )
 from apps.api.app.services.document_service import DocumentService
 from fastapi import APIRouter, Depends, File, UploadFile, status
@@ -56,3 +58,32 @@ async def delete_document(
     """Delete document by ID."""
     await doc_service.delete_document(document_id=document_id)
     return DocumentDeleteResponse(message="Document deleted")
+
+
+@router.post(
+    "/search",
+    response_model=DocumentSearchResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Semantic Document Search",
+    description="Generates query embedding and executes similarity search against Qdrant vector database.",
+)
+async def search_documents(
+    payload: DocumentSearchRequest,
+) -> DocumentSearchResponse:
+    """Execute semantic search query and return ranked matching document chunks with metadata."""
+    from packages.rag.retriever import VectorRetriever
+
+    retriever = VectorRetriever()
+    results = retriever.retrieve(
+        question=payload.query,
+        top_k=payload.top_k,
+        score_threshold=payload.score_threshold,
+        document_id=payload.document_id,
+        filename=payload.filename,
+        file_type=payload.file_type,
+    )
+    results_dict = [res.model_dump() for res in results]
+    return DocumentSearchResponse(
+        results=results_dict,
+        total_results=len(results_dict),
+    )
