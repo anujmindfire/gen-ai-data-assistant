@@ -92,27 +92,33 @@ class DocumentService:
             chunks = self.chunker.split_document(parsed_metadata, document_id=doc_id)
             chunks_count = len(chunks)
 
-            # Step 3: Embed Chunks (Document -> Parsed -> Chunked -> Embedded)
+            # Step 3 & 4: Embed & Index Chunks (Document -> Parsed -> Chunked -> Embedded -> Indexed)
             if settings.is_gemini_configured:
                 from packages.rag.embeddings import EmbeddingService
+                from packages.rag.vector_store import QdrantVectorStore
 
                 embedding_service = EmbeddingService()
                 enriched_chunks = embedding_service.embed_chunks(chunks)
                 embedded_count = len(enriched_chunks)
+
+                vector_store = QdrantVectorStore()
+                indexed_count = vector_store.upsert_chunks(enriched_chunks)
             else:
                 embedded_count = 0
+                indexed_count = 0
 
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
             # Log metrics without logging text contents or embeddings
             logger.info(
                 f"Document '{filename}' processed successfully: {chunks_count} chunks created, "
-                f"{embedded_count} chunks embedded in {duration_ms}ms "
+                f"{embedded_count} chunks embedded, {indexed_count} chunks indexed in Qdrant in {duration_ms}ms "
                 f"(chunk_size={self.chunker.chunk_size}, overlap={self.chunker.chunk_overlap})",
                 extra={
                     "document_id": doc_id,
                     "chunk_count": chunks_count,
                     "embedded_count": embedded_count,
+                    "indexed_count": indexed_count,
                     "chunk_size": self.chunker.chunk_size,
                     "chunk_overlap": self.chunker.chunk_overlap,
                     "duration_ms": duration_ms,
@@ -203,6 +209,18 @@ class DocumentService:
                 )
 
         doc_repository.delete(document_id)
+
+        # Remove vector embeddings from Qdrant
+        try:
+            from packages.rag.vector_store import QdrantVectorStore
+
+            vector_store = QdrantVectorStore()
+            vector_store.delete_document(document_id)
+        except Exception as exc:
+            logger.warning(
+                f"Failed to delete Qdrant vector points for document_id '{document_id}': {str(exc)}"
+            )
+
         logger.info(
             f"Successfully deleted document record '{filename}' (ID: {document_id})"
         )

@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     # Qdrant Vector DB settings
     QDRANT_HOST: str = Field(default="qdrant")
     QDRANT_PORT: int = Field(default=6333)
+    QDRANT_COLLECTION: str = Field(
+        default="company_documents",
+        description="Qdrant collection name for document vector embeddings",
+    )
+    QDRANT_VECTOR_SIZE: int = Field(
+        default=768,
+        description="Dimensionality of vector embeddings (Gemini text-embedding-004 output size)",
+    )
 
     @property
     def postgres_url(self) -> str:
