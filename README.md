@@ -83,9 +83,9 @@ genai-data-assistant/
 
 ---
 
-## Document Pipeline & Gemini Embeddings
+## Document Pipeline, Embeddings & Qdrant Indexing
 
-### Ingestion Flow
+### Ingestion & Indexing Flow
 ```text
 Document Upload
       ↓
@@ -97,24 +97,46 @@ Document Chunker (RecursiveCharacterTextSplitter)
       ↓
 Embedding Generation (GoogleGenerativeAIEmbeddings: text-embedding-004)
       ↓
+Vector Indexing (Qdrant PointStruct with payload & cosine distance)
+      ↓
 Metadata Persistence (PostgreSQL documents table) & API Response
 ```
 
-### Embedding Configuration & Batching
-Vector embeddings are generated using Google Gemini's `text-embedding-004` model. Text chunks are processed in efficient batches to optimize API latency while preserving chunk sequence and metadata.
+### Embedding & Qdrant Configuration
+Vector embeddings are generated using Google Gemini's `text-embedding-004` model (768-dimensional dense vectors) and indexed into Qdrant collection `company_documents`.
 
 - **Embedding Model (`GEMINI_EMBEDDING_MODEL`)**: `text-embedding-004`
-- **Batch Size (`EMBEDDING_BATCH_SIZE`)**: `16` chunks per batch
+- **Embedding Batch Size (`EMBEDDING_BATCH_SIZE`)**: `16` chunks per batch
+- **Qdrant Collection (`QDRANT_COLLECTION`)**: `company_documents`
+- **Vector Size (`QDRANT_VECTOR_SIZE`)**: `768` (Cosine Distance)
 
-These settings can be overridden in `.env`:
+Environment configuration (`.env`):
 ```env
 GEMINI_EMBEDDING_MODEL=text-embedding-004
 EMBEDDING_BATCH_SIZE=16
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+QDRANT_COLLECTION=company_documents
+QDRANT_VECTOR_SIZE=768
 CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 ```
 
-*Note: In the next feature branch (`feat/qdrant-indexing`), these generated dense vector embeddings will be indexed into Qdrant vector collections.*
+### Qdrant Point Payload Schema
+Each text chunk is indexed as a Qdrant point vector with complete payload metadata for future retrieval:
+```json
+{
+  "document_id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
+  "chunk_id": "00000000-0000-0000-0000-000000000001",
+  "filename": "employee_handbook.pdf",
+  "file_type": "pdf",
+  "page": 1,
+  "chunk_index": 0,
+  "text": "Extracted text chunk content body..."
+}
+```
+
+*Note: In the next feature branch (`feat/rag-retrieval`), vector retrieval and semantic search will be implemented.*
 
 ---
 
@@ -122,11 +144,11 @@ CHUNK_OVERLAP=100
 
 | Method | Endpoint | Status | Description |
 |---|---|---|---|
-| `GET` | `/health` | **200 OK** | Health check returning service & Gemini configuration status |
+| `GET` | `/health` | **200 OK** | Health check returning service, Qdrant connectivity, & Gemini configuration status |
 | `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
-| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, and return chunk count |
+| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, index in Qdrant, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
-| `DELETE` | `/documents/{id}` | **200 OK** | Delete document record and purge physical file from disk |
+| `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
 
 ---
 

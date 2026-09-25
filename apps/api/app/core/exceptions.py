@@ -60,8 +60,34 @@ class DocumentNotFoundException(Exception):
         super().__init__(self.message)
 
 
+class QdrantAPIException(Exception):
+    """Exception raised when Qdrant Vector DB operation fails."""
+
+    def __init__(
+        self,
+        message: str = "Unable to complete Qdrant operation.",
+        code: str = "QDRANT_API_ERROR",
+    ) -> None:
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
+class QdrantConfigException(Exception):
+    """Exception raised when Qdrant configuration is invalid."""
+
+    def __init__(
+        self,
+        message: str = "Qdrant configuration error.",
+        code: str = "QDRANT_CONFIG_ERROR",
+    ) -> None:
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register custom JSON exception handlers for all HTTP, validation, Gemini, and document errors.
+    """Register custom JSON exception handlers for HTTP, validation, Gemini, Qdrant, and document errors.
 
     Args:
         app: FastAPI instance.
@@ -125,6 +151,38 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         """Handler for missing or invalid Gemini configuration."""
         logger.error(f"GeminiConfigException: {exc.message} - Path: {request.url.path}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                }
+            },
+        )
+
+    @app.exception_handler(QdrantAPIException)
+    async def qdrant_api_exception_handler(
+        request: Request, exc: QdrantAPIException
+    ) -> JSONResponse:
+        """Handler for Qdrant operations and connection failures."""
+        logger.error(f"QdrantAPIException: {exc.message} - Path: {request.url.path}")
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                }
+            },
+        )
+
+    @app.exception_handler(QdrantConfigException)
+    async def qdrant_config_exception_handler(
+        request: Request, exc: QdrantConfigException
+    ) -> JSONResponse:
+        """Handler for invalid Qdrant configuration."""
+        logger.error(f"QdrantConfigException: {exc.message} - Path: {request.url.path}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={

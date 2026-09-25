@@ -16,12 +16,23 @@ router = APIRouter(tags=["Health"])
 )
 async def health_check() -> HealthResponse:
     """Return component health status payload."""
+    qdrant_ok = True
+    try:
+        from packages.rag.vector_store import QdrantVectorStore
+
+        store = QdrantVectorStore()
+        check = store.health_check()
+        qdrant_ok = check.get("status") == "connected"
+    except Exception:
+        qdrant_ok = False
+
     return HealthResponse(
-        status="healthy",
+        status="healthy" if qdrant_ok else "degraded",
         services=ServiceStatus(
             api=True,
             postgres=True,
-            qdrant=True,
+            qdrant=qdrant_ok,
+            qdrant_collection=settings.QDRANT_COLLECTION,
             gemini_configured=settings.is_gemini_configured,
         ),
     )
