@@ -27,6 +27,10 @@ class ChatResponse(BaseModel):
     """Response payload returned by /chat endpoint."""
 
     answer: str = Field(..., description="Generated answer text from Gemini")
+    route: str | None = Field(
+        default=None,
+        description="Selected routing branch ('rag', 'sql', or 'combined')",
+    )
     sources: list[CitationSource] = Field(
         default_factory=list, description="Array of document source citations"
     )
