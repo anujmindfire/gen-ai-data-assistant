@@ -28,6 +28,16 @@ class Settings(BaseSettings):
         description="Default Gemini model to use",
     )
 
+    # Document Chunking settings
+    CHUNK_SIZE: int = Field(
+        default=500,
+        description="Target character size per document text chunk",
+    )
+    CHUNK_OVERLAP: int = Field(
+        default=100,
+        description="Character overlap between consecutive chunks",
+    )
+
     @property
     def is_gemini_configured(self) -> bool:
         """Check if GEMINI_API_KEY is configured with a non-empty, non-placeholder value."""

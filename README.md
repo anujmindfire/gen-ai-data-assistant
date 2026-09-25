@@ -55,7 +55,7 @@ genai-data-assistant/
 │       └── uv.lock           # Locked dependency tree
 │
 ├── packages/                 # Shared Monorepo Packages
-│   ├── rag/                  # Document ingestion, embeddings & retriever modules
+│   ├── rag/                  # Document ingestion, chunking, embeddings & retriever modules
 │   ├── sql_agent/            # DB schema inspector, query validator & SQL agent skeletons
 │   ├── graph/                # LangGraph state definition, router & workflow DAG
 │   ├── shared/               # Shared settings, Gemini client, logging & utilities
@@ -83,7 +83,7 @@ genai-data-assistant/
 
 ---
 
-## Document Ingestion & Storage
+## Document Ingestion & Chunking Strategy
 
 ### Supported File Formats
 - `.pdf` (Parsed using `PyPDFLoader`)
@@ -91,12 +91,32 @@ genai-data-assistant/
 - `.txt` (Parsed using `TextLoader`)
 - `.md` (Parsed using `TextLoader`)
 
-### Storage Location
-Uploaded physical files are stored under:
-```text
-data/documents/<uuid>_<filename>
+### Configurable Chunking Configuration
+Documents are parsed and split into normalized text chunks using LangChain's `RecursiveCharacterTextSplitter`.
+
+- **Default Chunk Size (`CHUNK_SIZE`)**: `500` characters
+- **Default Chunk Overlap (`CHUNK_OVERLAP`)**: `100` characters
+
+These settings can be overridden in `.env`:
+```env
+CHUNK_SIZE=500
+CHUNK_OVERLAP=100
 ```
-File metadata (id, filename, file_type, file_path, size, pages, uploaded_at) is persisted in the PostgreSQL `documents` table.
+
+### Storage & Chunking Workflow
+```text
+Document Upload
+      ↓
+File Storage (data/documents/<uuid>_<filename>)
+      ↓
+Document Parser (extracts text & metadata)
+      ↓
+Document Chunker (RecursiveCharacterTextSplitter)
+      ↓
+Metadata Persistence (PostgreSQL documents table) & API Response
+```
+
+*Note: In the next feature branch (`feat/gemini-embeddings`), these generated text chunks will be passed to Google Gemini Embeddings and indexed into Qdrant.*
 
 ---
 
@@ -106,7 +126,7 @@ File metadata (id, filename, file_type, file_path, size, pages, uploaded_at) is 
 |---|---|---|---|
 | `GET` | `/health` | **200 OK** | Health check returning service & Gemini configuration status |
 | `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
-| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, and register document file metadata |
+| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk document, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record and purge physical file from disk |
 
@@ -114,7 +134,7 @@ File metadata (id, filename, file_type, file_path, size, pages, uploaded_at) is 
 
 ## Usage Examples
 
-### 1. Upload & Ingest a Document
+### 1. Upload & Chunk a Document
 
 ```bash
 curl -X POST "http://localhost:8000/documents/ingest" \
@@ -126,11 +146,10 @@ curl -X POST "http://localhost:8000/documents/ingest" \
 **Response (`201 Created`)**:
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
   "filename": "employee_handbook.pdf",
-  "type": "pdf",
-  "size": 120394,
-  "status": "ingested"
+  "status": "ingested",
+  "chunks_created": 42
 }
 ```
 
@@ -144,7 +163,7 @@ curl -X GET "http://localhost:8000/documents"
 ```json
 [
   {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
     "filename": "employee_handbook.pdf",
     "type": "pdf"
   }
@@ -154,7 +173,7 @@ curl -X GET "http://localhost:8000/documents"
 ### 3. Delete a Document
 
 ```bash
-curl -X DELETE "http://localhost:8000/documents/550e8400-e29b-41d4-a716-446655440000"
+curl -X DELETE "http://localhost:8000/documents/1728275e-c75b-479e-87d8-8aaab5b3dd44"
 ```
 
 **Response (`200 OK`)**:
@@ -170,7 +189,7 @@ curl -X DELETE "http://localhost:8000/documents/550e8400-e29b-41d4-a716-44665544
 
 ### Running Tests
 
-Run the Pytest suite (including document ingestion tests):
+Run the Pytest suite (including document chunking tests):
 ```bash
 make test
 ```

@@ -8,12 +8,10 @@ class DocumentIngestResponse(BaseModel):
 
     id: str = Field(..., description="Unique document UUID")
     filename: str = Field(..., description="Original filename of uploaded document")
-    type: str = Field(
-        ...,
-        description="Normalized document file extension (pdf, docx, txt, md)",
-    )
-    size: int = Field(..., description="File size in bytes")
     status: str = Field(default="ingested", description="Ingestion processing status")
+    chunks_created: int = Field(
+        ..., description="Number of text chunks created from the document"
+    )
 
 
 class DocumentItem(BaseModel):

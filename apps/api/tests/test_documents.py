@@ -16,9 +16,9 @@ def test_ingest_txt_file_success(client: TestClient) -> None:
     data = response.json()
     assert "id" in data
     assert data["filename"] == "test_doc.txt"
-    assert data["type"] == "txt"
-    assert data["size"] == len(file_content)
     assert data["status"] == "ingested"
+    assert "chunks_created" in data
+    assert data["chunks_created"] >= 1
 
 
 def test_ingest_md_file_success(client: TestClient) -> None:
@@ -30,7 +30,8 @@ def test_ingest_md_file_success(client: TestClient) -> None:
     assert response.status_code == 201
     data = response.json()
     assert data["filename"] == "notes.md"
-    assert data["type"] == "md"
+    assert data["status"] == "ingested"
+    assert data["chunks_created"] >= 1
 
 
 def test_ingest_pdf_file_mocked_success(client: TestClient) -> None:
@@ -52,7 +53,8 @@ def test_ingest_pdf_file_mocked_success(client: TestClient) -> None:
         assert response.status_code == 201
         data = response.json()
         assert data["filename"] == "handbook.pdf"
-        assert data["type"] == "pdf"
+        assert data["status"] == "ingested"
+        assert data["chunks_created"] >= 1
 
 
 def test_ingest_docx_file_mocked_success(client: TestClient) -> None:
@@ -74,7 +76,8 @@ def test_ingest_docx_file_mocked_success(client: TestClient) -> None:
         assert response.status_code == 201
         data = response.json()
         assert data["filename"] == "report.docx"
-        assert data["type"] == "docx"
+        assert data["status"] == "ingested"
+        assert data["chunks_created"] >= 1
 
 
 def test_ingest_invalid_file_extension_fails(client: TestClient) -> None:
