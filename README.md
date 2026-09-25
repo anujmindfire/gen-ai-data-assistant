@@ -170,6 +170,13 @@ CHUNK_OVERLAP=100
    - **Configurable Row Limits**: Capped at `MAX_SQL_ROWS` (default: 100) to prevent oversized responses.
    - **Structured Query Logging**: Logs timestamp, natural language question, generated SQL, validation outcome, row count, and execution duration.
 
+### Conversation Memory & Follow-Up Context Handling
+The assistant features session-based **Conversation Memory** powered by an in-memory manager (`ConversationMemoryManager`):
+- **Session Continuation**: Passing `session_id` in `POST /chat` allows the system to retain interaction history across chat turns, resolving pronouns and follow-up references (e.g., *"Which customer spent the most?"* followed by *"What about the second highest?"*).
+- **Auto-Generation & Tracking**: If no `session_id` is supplied in `POST /chat`, a unique session ID is generated and returned in `ChatResponse.session_id`.
+- **Memory Trimming**: Automatically caps chat turn history at `MAX_CONVERSATION_MESSAGES` (default: 20 messages), dropping the oldest interaction pairs while retaining active context.
+- **Context Injection**: Incorporates session history directly into LangGraph state nodes to enable context-aware RAG search and Text-to-SQL generation.
+
 ---
 
 ## API Endpoints & Specification
@@ -177,7 +184,9 @@ CHUNK_OVERLAP=100
 | Method | Endpoint | Status | Description |
 |---|---|---|---|
 | `GET` | `/health` | **200 OK** | Health check returning service, Qdrant connectivity, & Gemini configuration status |
-| `POST` | `/chat` | **200 OK** | RAG-powered chat endpoint returning grounded Gemini answer with source citations |
+| `POST` | `/chat` | **200 OK** | RAG & SQL-powered chat endpoint with session memory context continuation |
+| `GET` | `/sessions/{id}` | **200 OK** | Get conversation history and metadata for a specific session ID |
+| `DELETE` | `/sessions/{id}` | **200 OK** | Delete session memory and clear historical context for a specific session ID |
 | `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, index in Qdrant, and return chunk count |
 | `GET` | `/documents` | **200 OK** | List all uploaded document records |
 | `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
@@ -186,6 +195,7 @@ CHUNK_OVERLAP=100
 | `POST` | `/database/validate-sql` | **200 OK** | Validates input SQL statement for read-only SELECT compliance using AST parsing |
 | `POST` | `/database/generate-sql` | **200 OK** | Generates read-only PostgreSQL query statement from natural language question using Gemini |
 | `POST` | `/database/query` | **200 OK** | Full pipeline: generates, validates, and executes read-only SQL query returning structured rows |
+
 
 
 ---

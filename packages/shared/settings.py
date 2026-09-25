@@ -110,6 +110,11 @@ class Settings(BaseSettings):
         default=100,
         description="Maximum row count limit for SQL query execution results",
     )
+    # Conversation Memory settings
+    MAX_CONVERSATION_MESSAGES: int = Field(
+        default=20,
+        description="Maximum number of historical messages retained per session",
+    )
 
     @property
     def postgres_url(self) -> str:

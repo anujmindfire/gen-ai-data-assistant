@@ -11,6 +11,11 @@ class ChatRequest(BaseModel):
         description="Natural language message prompt from user",
         examples=["Hello"],
     )
+    session_id: str | None = Field(
+        default=None,
+        description="Optional conversation session ID string for session history and context tracking",
+        examples=["sess_123abc456"],
+    )
 
 
 class CitationSource(BaseModel):
@@ -27,6 +32,7 @@ class ChatResponse(BaseModel):
     """Response payload returned by /chat endpoint."""
 
     answer: str = Field(..., description="Generated answer text from Gemini")
+    session_id: str = Field(..., description="Active conversation session ID")
     route: str | None = Field(
         default=None,
         description="Selected routing branch ('rag', 'sql', or 'combined')",

@@ -22,6 +22,12 @@ class AgentState(TypedDict, total=False):
 
     question: str
     query: str  # Alias for backward compatibility
+    session_id: str | None
+    conversation_history: list[dict[str, Any]]
+    previous_route: str | None
+    previous_sources: list[dict[str, Any]]
+    previous_sql: str | None
+    timestamp: str | None
     route: str | None
     intent: str | None  # Alias for backward compatibility
     retrieved_docs: list[dict[str, Any]]

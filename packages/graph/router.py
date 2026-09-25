@@ -82,18 +82,33 @@ def route_intent_node(state: AgentState) -> AgentState:
     logger.info(f"LangGraph Router Node evaluating question: '{clean_question}'")
 
     route = None
+    history = state.get("conversation_history", [])
+    history_context = ""
+    if history:
+        # Build brief context string from recent turns (last 4 messages)
+        recent_msgs = history[-4:]
+        history_lines = [
+            f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}"
+            for msg in recent_msgs
+            if isinstance(msg, dict) and msg.get("content")
+        ]
+        if history_lines:
+            history_context = (
+                "RECENT CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
+            )
 
     # Step 1: Try Gemini LLM Classification if configured
     if settings.is_gemini_configured:
         prompt = f"""You are a router node in an AI data assistant. Classify the user question into exactly ONE of the three routes:
-1. "rag": Questions about unstructured documents, policies, guidelines, handbooks, or text rules (e.g. "What is the leave policy?").
-2. "sql": Questions about database analytics, totals, revenue, sales, order counts, or customer metrics (e.g. "Top 5 customers by revenue").
-3. "combined": Questions asking for BOTH document policy rules AND database numbers in a single request (e.g. "What is the refund policy and how much was refunded last month?").
+1. "rag": Questions about unstructured documents, policies, guidelines, handbooks, or text rules.
+2. "sql": Questions about database analytics, totals, revenue, sales, order counts, customer rankings, or structured metrics.
+3. "combined": Questions asking for BOTH document policy rules AND database numbers in a single request.
 
-USER QUESTION:
+{history_context}CURRENT USER QUESTION:
 {clean_question}
 
 CRITICAL INSTRUCTIONS:
+- If the question is a follow-up (e.g. "What about the second one?"), use the conversation history to determine the appropriate route.
 - Respond ONLY with a valid JSON object: {{"route": "rag"}} or {{"route": "sql"}} or {{"route": "combined"}}.
 - Do NOT output explanations or markdown code fences.
 """
@@ -115,7 +130,15 @@ CRITICAL INSTRUCTIONS:
 
     # Step 2: Fallback to Heuristic Classifier if route is unassigned
     if not route:
-        route = classify_question_heuristic(clean_question)
+        # Check if follow-up question and previous_route exists
+        prev_route = state.get("previous_route")
+        if (
+            prev_route in ("rag", "sql", "combined")
+            and len(clean_question.split()) <= 6
+        ):
+            route = prev_route
+        else:
+            route = classify_question_heuristic(clean_question)
 
     duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
     logger.info(

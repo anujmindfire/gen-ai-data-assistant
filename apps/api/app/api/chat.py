@@ -19,5 +19,7 @@ async def chat_endpoint(
     request: ChatRequest,
     chat_service: ChatService = Depends(get_chat_service),
 ) -> ChatResponse:
-    """Execute direct chat completion with Google Gemini."""
-    return await chat_service.generate_response(message=request.message)
+    """Execute direct chat completion with Google Gemini and session memory."""
+    return await chat_service.generate_response(
+        message=request.message, session_id=request.session_id
+    )
