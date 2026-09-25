@@ -1,7 +1,9 @@
 """SQL generation agent placeholder using LangChain and Gemini."""
 
-from typing import Dict, Any
+from typing import Any
+
 from packages.shared.logging import get_logger
+
 from .database import DatabaseInspector
 from .validator import SQLValidator
 
@@ -22,9 +24,7 @@ class SQLAgent:
         self.validator = SQLValidator()
         logger.info("Initialized SQLAgent")
 
-    async def generate_and_execute(
-        self, natural_language_query: str
-    ) -> Dict[str, Any]:
+    async def generate_and_execute(self, natural_language_query: str) -> dict[str, Any]:
         """Translate natural language query to SQL, validate, execute, and return results.
 
         Args:

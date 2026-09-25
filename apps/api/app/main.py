@@ -1,10 +1,10 @@
 """Main FastAPI Application Entrypoint for GenAI Data Assistant API."""
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from apps.api.app.api.router import api_router
 from apps.api.app.core.exceptions import register_exception_handlers
 from apps.api.app.core.middleware import LoggingMiddleware
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from packages.shared.logging import get_logger
 from packages.shared.settings import settings
 
@@ -43,7 +43,9 @@ def create_app() -> FastAPI:
     # Mount master API router
     app.include_router(api_router)
 
-    logger.info(f"Initialized FastAPI App: {settings.APP_NAME} (v{settings.APP_VERSION})")
+    logger.info(
+        f"Initialized FastAPI App: {settings.APP_NAME} (v{settings.APP_VERSION})"
+    )
     return app
 
 

@@ -1,6 +1,5 @@
 """SQL query validator placeholder for security checks and query safety enforcement."""
 
-from typing import Tuple
 from packages.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -16,7 +15,7 @@ class SQLValidator:
     """
 
     @staticmethod
-    def validate_query(sql_query: str) -> Tuple[bool, str]:
+    def validate_query(sql_query: str) -> tuple[bool, str]:
         """Validate whether an LLM-generated SQL query is safe to execute.
 
         Args:

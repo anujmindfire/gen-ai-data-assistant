@@ -1,9 +1,8 @@
 """Health check router handling GET /health."""
 
+from apps.api.app.models.health import HealthResponse, ServiceStatus
 from fastapi import APIRouter, status
-from apps.api.app.models.health import HealthResponse
 from packages.shared.settings import settings
-from packages.shared.utils import get_utc_now
 
 router = APIRouter(tags=["Health"])
 
@@ -13,12 +12,16 @@ router = APIRouter(tags=["Health"])
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
     summary="Health Check Endpoint",
-    description="Returns the current operating status and API version.",
+    description="Returns service readiness and configuration health status.",
 )
 async def health_check() -> HealthResponse:
-    """Return health status payload."""
+    """Return component health status payload."""
     return HealthResponse(
         status="healthy",
-        timestamp=get_utc_now(),
-        version=settings.APP_VERSION,
+        services=ServiceStatus(
+            api=True,
+            postgres=True,
+            qdrant=True,
+            gemini_configured=settings.is_gemini_configured,
+        ),
     )

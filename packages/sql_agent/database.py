@@ -1,6 +1,7 @@
 """Database schema inspector placeholder for reflection and table schema extraction."""
 
-from typing import Dict, Any, List
+from typing import Any
+
 from packages.shared.logging import get_logger
 from packages.shared.settings import settings
 
@@ -36,7 +37,7 @@ class DatabaseInspector:
         TABLE orders (order_id INT, customer_id INT, order_date DATE, total_amount NUMERIC);
         """
 
-    async def execute_query(self, query: str) -> List[Dict[str, Any]]:
+    async def execute_query(self, query: str) -> list[dict[str, Any]]:
         """Execute a read-only SQL query against the database.
 
         Args:
@@ -47,6 +48,4 @@ class DatabaseInspector:
         """
         # TODO: Execute query safely using SQLAlchemy async session
         logger.info(f"Executing SQL query (placeholder): {query}")
-        return [
-            {"total_revenue": 125000.50, "currency": "USD", "period": "2026-Q1"}
-        ]
+        return [{"total_revenue": 125000.50, "currency": "USD", "period": "2026-Q1"}]

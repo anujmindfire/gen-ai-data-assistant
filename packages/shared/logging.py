@@ -3,14 +3,14 @@
 import json
 import logging
 import sys
-from typing import Any, Dict
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):
     """Formatter that outputs JSON structured log lines."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
             "logger": record.name,
@@ -19,13 +19,13 @@ class JSONFormatter(logging.Formatter):
 
         # Include custom extra fields passed via extra={}
         if hasattr(record, "request_id"):
-            log_data["request_id"] = getattr(record, "request_id")
+            log_data["request_id"] = record.request_id
         if hasattr(record, "endpoint"):
-            log_data["endpoint"] = getattr(record, "endpoint")
+            log_data["endpoint"] = record.endpoint
         if hasattr(record, "duration_ms"):
-            log_data["duration_ms"] = getattr(record, "duration_ms")
+            log_data["duration_ms"] = record.duration_ms
         if hasattr(record, "status_code"):
-            log_data["status_code"] = getattr(record, "status_code")
+            log_data["status_code"] = record.status_code
 
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)

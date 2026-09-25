@@ -10,7 +10,7 @@ The GenAI Data Assistant acts as an intelligent router and orchestration engine.
 1. **RAG Pipeline**: Retrieves vector context from Qdrant for document/unstructured data queries.
 2. **SQL Agent**: Formulates and executes safe SQL queries against PostgreSQL for structured business analytics (e.g., revenue queries on customers, products, and orders).
 
-Results are combined and passed to the Google Gemini API to synthesize high-quality user responses.
+Direct `/chat` requests are powered by **Google Gemini** (`gemini-2.5-flash`).
 
 ```mermaid
 flowchart TD
@@ -58,8 +58,8 @@ genai-data-assistant/
 │   ├── rag/                  # Document ingestion, embeddings & retriever skeletons
 │   ├── sql_agent/            # DB schema inspector, query validator & SQL agent skeletons
 │   ├── graph/                # LangGraph state definition, router & workflow DAG
-│   ├── shared/               # Shared settings (Pydantic), logging & utility modules
-│   └── config/               # Gemini LLM client setup & Alembic database migrations
+│   ├── shared/               # Shared settings, Gemini client, logging & utilities
+│   └── config/               # Alembic database migrations & Third-party integrations
 │
 ├── data/
 │   ├── documents/            # Volume placeholder for document storage
@@ -83,38 +83,33 @@ genai-data-assistant/
 
 ---
 
-## Getting Started
+## Google Gemini API Setup Guide
 
-### Prerequisites
+To use the Google Gemini LLM integration:
 
-- Python 3.12+
-- [`uv`](https://github.com/astral-sh/uv) package manager
-- Docker and Docker Compose
-- Make (optional, for helper commands)
+### 1. Get a Free Google Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/).
+2. Sign in with your Google account.
+3. Click on **Create API Key**.
+4. Copy your generated API key string.
 
-### Environment Configuration
-
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Set your `GEMINI_API_KEY` in `.env`:
-   ```env
-   GEMINI_API_KEY=your_actual_gemini_api_key
-   ```
-
-### Quick Setup
-
-Run the automated setup script:
+### 2. Configure `.env` File
+Create or update your `.env` file in the project root:
 ```bash
-make setup
-# OR
-bash scripts/setup.sh
+cp .env.example .env
+```
+
+Set `GEMINI_API_KEY` and optionally `GEMINI_MODEL`:
+```env
+GEMINI_API_KEY=AIzaSyYourActualGeminiApiKeyHere
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ---
 
-## Running with Docker Compose
+## Quick Start & Running the Project
+
+### Running with Docker Compose
 
 Spin up the entire stack (FastAPI, PostgreSQL 16, and Qdrant) using Docker Compose:
 
@@ -131,14 +126,50 @@ docker compose -f infra/docker-compose.yml up --build -d
 - **PostgreSQL Database**: `localhost:5432` (`db: assistant`, `user: genai`, `pass: genai`)
 - **Qdrant REST API**: `localhost:6333`
 
-To stop services:
+---
+
+## API Endpoints & Usage Example
+
+| Method | Endpoint | Status | Description |
+|---|---|---|---|
+| `GET` | `/health` | **200 OK** | Health check returning service & Gemini configuration status |
+| `POST` | `/chat` | **200 OK** | Direct chat completion endpoint using Google Gemini API |
+| `POST` | `/documents/ingest` | **501 Not Implemented** | Future endpoint for RAG document ingestion pipeline |
+| `GET` | `/documents` | **501 Not Implemented** | Future endpoint for listing ingested vector documents |
+| `DELETE` | `/documents/{id}` | **501 Not Implemented** | Future endpoint for purging document embeddings |
+
+### Example `/chat` Request
+
+Send a message prompt to the assistant:
+
 ```bash
-make down
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Explain quantum computing in one sentence."}'
 ```
 
-To tail logs:
-```bash
-make logs
+### Example `/chat` Response
+
+```json
+{
+  "answer": "Quantum computing uses the principles of quantum mechanics to process complex information in ways that classical computers cannot.",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}
+```
+
+### Example `/health` Response
+
+```json
+{
+  "status": "healthy",
+  "services": {
+    "api": true,
+    "postgres": true,
+    "qdrant": true,
+    "gemini_configured": true
+  }
+}
 ```
 
 ---
@@ -147,7 +178,7 @@ make logs
 
 ### Running Tests
 
-Run the Pytest suite for the FastAPI application:
+Run the Pytest suite (including mocked Gemini unit tests):
 ```bash
 make test
 ```
@@ -159,41 +190,3 @@ Verify and fix code formatting using Ruff:
 make lint
 make format
 ```
-
----
-
-## API Endpoint Specification
-
-| Method | Endpoint | Status | Description |
-|---|---|---|---|
-| `GET` | `/health` | **200 OK** | Health check returning service status, timestamp, and version |
-| `POST` | `/chat` | **501 Not Implemented** | Future endpoint for invoking LangGraph agent workflow |
-| `POST` | `/documents/ingest` | **501 Not Implemented** | Future endpoint for RAG document ingestion pipeline |
-| `GET` | `/documents` | **501 Not Implemented** | Future endpoint for listing ingested vector documents |
-| `DELETE` | `/documents/{id}` | **501 Not Implemented** | Future endpoint for purging document embeddings |
-
----
-
-## Future Roadmap & Milestones
-
-1. **Phase 1: Architecture Setup** *(Completed)*
-   - Monorepo folder layout & package organization
-   - FastAPI structure with health check and 501 placeholders
-   - Structured logging middleware & centralized error handlers
-   - Docker Compose setup with PostgreSQL & Qdrant
-   - LangGraph DAG preparation & Gemini client setup
-
-2. **Phase 2: RAG Pipeline Implementation** *(Upcoming)*
-   - Document loaders & chunking strategies in `packages/rag/ingest.py`
-   - Gemini Embedding integrations in `packages/rag/embeddings.py`
-   - Qdrant collection setup & hybrid vector search in `packages/rag/retriever.py`
-
-3. **Phase 3: SQL Agent & Database Integration** *(Upcoming)*
-   - DB reflection & schema extraction in `packages/sql_agent/database.py`
-   - SQL safety validator & AST parser in `packages/sql_agent/validator.py`
-   - LangChain/SQLAlchemy query generation agent in `packages/sql_agent/agent.py`
-
-4. **Phase 4: LangGraph Routing & Orchestration** *(Upcoming)*
-   - Intent classifier node logic in `packages/graph/router.py`
-   - State transition DAG and condition evaluations in `packages/graph/workflow.py`
-   - Response synthesis using Gemini in `/chat` endpoint

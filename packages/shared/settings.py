@@ -24,9 +24,27 @@ class Settings(BaseSettings):
         description="Google Gemini API key required for LLM operations",
     )
     GEMINI_MODEL: str = Field(
-        default="gemini-1.5-flash",
+        default="gemini-2.5-flash",
         description="Default Gemini model to use",
     )
+
+    @property
+    def is_gemini_configured(self) -> bool:
+        """Check if GEMINI_API_KEY is configured with a non-empty, non-placeholder value."""
+        key = self.GEMINI_API_KEY.strip()
+        return bool(key) and key != "your_gemini_api_key_here"
+
+    def validate_gemini_config(self) -> None:
+        """Validate Gemini API key configuration.
+
+        Raises:
+            ValueError: If GEMINI_API_KEY is missing or invalid.
+        """
+        if not self.is_gemini_configured:
+            raise ValueError(
+                "GEMINI_API_KEY is missing or set to placeholder. "
+                "Please configure a valid GEMINI_API_KEY in your .env file."
+            )
 
     # PostgreSQL Database settings
     POSTGRES_HOST: str = Field(default="postgres")

@@ -1,7 +1,8 @@
 """Shared base models and schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -18,7 +19,7 @@ class ErrorDetail(BaseModel):
 
     code: int
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class ErrorResponse(BaseModel):

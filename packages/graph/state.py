@@ -1,8 +1,9 @@
 """Typed state definition for LangGraph state graph transitions."""
 
-from typing import List, Dict, Any, Optional, Annotated
-from typing_extensions import TypedDict
 import operator
+from typing import Annotated, Any
+
+from typing_extensions import TypedDict
 
 
 class AgentState(TypedDict):
@@ -20,10 +21,10 @@ class AgentState(TypedDict):
     """
 
     query: str
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-    intent: Optional[str]
-    retrieved_docs: List[Dict[str, Any]]
-    sql_query: Optional[str]
-    sql_result: Optional[List[Dict[str, Any]]]
-    final_response: Optional[str]
-    error: Optional[str]
+    messages: Annotated[list[dict[str, Any]], operator.add]
+    intent: str | None
+    retrieved_docs: list[dict[str, Any]]
+    sql_query: str | None
+    sql_result: list[dict[str, Any]] | None
+    final_response: str | None
+    error: str | None
