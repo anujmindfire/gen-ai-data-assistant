@@ -65,3 +65,11 @@ testpaths = ["apps/api/tests"]
 python_files = ["test_*.py"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore::DeprecationWarning:google.*",
+    "ignore:.*langchain-community.*:DeprecationWarning",
+    "ignore:.*langchain_community.*:DeprecationWarning",
+    "ignore:.*HTTP_422_UNPROCESSABLE_ENTITY.*:UserWarning",
+    "ignore:.*StarletteDeprecationWarning.*",
+]
