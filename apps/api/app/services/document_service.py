@@ -50,7 +50,8 @@ class DocumentService:
             DocumentValidationException: If format is unsupported, empty, or parsing/chunking fails.
         """
         start_time = time.perf_counter()
-        filename = file.filename or "unnamed_document"
+        raw_filename = file.filename or "unnamed_document"
+        filename = os.path.basename(raw_filename.strip())
         ext = os.path.splitext(filename)[1].lower()
 
         if ext not in SUPPORTED_EXTENSIONS:
@@ -68,11 +69,20 @@ class DocumentService:
         try:
             content = await file.read()
             file_size = len(content)
+            max_size_bytes = 10 * 1024 * 1024  # 10 MB limit
 
             if file_size == 0:
                 logger.warning(f"Rejected upload '{filename}': File is empty (0 bytes)")
                 raise DocumentValidationException(
                     message=f"File '{filename}' is empty."
+                )
+
+            if file_size > max_size_bytes:
+                logger.warning(
+                    f"Rejected upload '{filename}': File size {file_size} exceeds 10MB limit"
+                )
+                raise DocumentValidationException(
+                    message=f"File size for '{filename}' exceeds maximum permitted limit of 10 MB."
                 )
 
             with open(target_path, "wb") as f:

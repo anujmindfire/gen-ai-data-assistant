@@ -11,6 +11,30 @@ from packages.shared.settings import settings
 logger = get_logger("api.main")
 
 
+tags_metadata = [
+    {
+        "name": "Health",
+        "description": "Service status, readiness, component connectivity, and version information.",
+    },
+    {
+        "name": "Chat",
+        "description": "LangGraph multi-agent intelligent chat endpoint orchestrating RAG document retrieval and Text-to-SQL query generation.",
+    },
+    {
+        "name": "Sessions",
+        "description": "Session memory management endpoints for inspecting and clearing conversation history.",
+    },
+    {
+        "name": "Documents",
+        "description": "Document ingestion, listing, deletion, and semantic vector similarity search using Qdrant.",
+    },
+    {
+        "name": "Database",
+        "description": "SQL database schema introspection, read-only SQL validation, Text-to-SQL generation, and safe execution.",
+    },
+]
+
+
 def create_app() -> FastAPI:
     """Factory function initializing FastAPI app instance with routers and middleware."""
     app = FastAPI(
@@ -18,11 +42,24 @@ def create_app() -> FastAPI:
         version=settings.APP_VERSION,
         description=(
             "Production-ready GenAI Data Assistant API powering RAG document retrieval "
-            "and SQL database analytics using LangChain, LangGraph, and Google Gemini."
+            "and SQL database analytics using LangChain, LangGraph, and Google Gemini.\n\n"
+            "## Architecture Highlights\n"
+            "- **Intelligent Router**: Classifies questions into `rag`, `sql`, or `combined` routes.\n"
+            "- **Vector Store**: Qdrant embedding search for PDF, DOCX, TXT, and Markdown documents.\n"
+            "- **Read-Only SQL Validation**: AST validation using `sqlglot` guaranteeing safe SELECT queries.\n"
+            "- **Conversation Memory**: Thread-safe session tracking supporting context continuation."
         ),
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        openapi_tags=tags_metadata,
+        contact={
+            "name": "GenAI Data Assistant Team",
+            "url": "https://github.com/anujmindfire/gen-ai-data-assistant",
+        },
+        license_info={
+            "name": "MIT License",
+        },
     )
 
     # Configure CORS

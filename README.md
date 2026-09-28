@@ -455,5 +455,51 @@ make lint
 make format
 ```
 
+---
+
+## Assignment Requirements Verification Checklist
+
+| Assignment Requirement | Module / Component | Verification Status |
+|---|---|---|
+| **Document RAG (PDF, DOCX, TXT, MD)** | `packages/rag/ingest.py` | ✅ Complete (PyPDFLoader, Docx2txtLoader, TextLoader) |
+| **Document Chunking** | `packages/rag/chunking.py` | ✅ Complete (RecursiveCharacterTextSplitter) |
+| **Google Gemini Embeddings** | `packages/rag/embeddings.py` | ✅ Complete (`text-embedding-004` embedding service) |
+| **Qdrant Vector Store** | `packages/rag/vector_store.py` | ✅ Complete (Collection indexing, similarity search, payload metadata) |
+| **RAG Source Citations** | `packages/rag/retriever.py` | ✅ Complete (Filename, page number, chunk index tracking) |
+| **SQL Schema Introspection** | `packages/sql_agent/schema_inspector.py` | ✅ Complete (SQLAlchemy reflection, columns, foreign keys, thread-safe caching) |
+| **NL → SQL Generation** | `packages/sql_agent/sql_generator.py` | ✅ Complete (Gemini schema-aware text-to-SQL prompting) |
+| **AST SQL Validation** | `packages/sql_agent/sql_validator.py` | ✅ Complete (Read-only `SELECT` AST parser via `sqlglot`) |
+| **Safe SQL Query Execution** | `packages/sql_agent/sql_executor.py` | ✅ Complete (Validation pipeline, row limit caps, structured query logging) |
+| **LangGraph Intelligent Router** | `packages/graph/router.py` | ✅ Complete (StateGraph DAG classifying `rag`, `sql`, and `combined` routes) |
+| **Combined Branch Workflow** | `packages/graph/nodes.py` | ✅ Complete (Dual-domain retrieval & synthesis node) |
+| **Conversation Memory** | `packages/graph/memory.py` | ✅ Complete (Session continuation, memory manager, follow-up query context, auto-trimming) |
+| **FastAPI Endpoints** | `apps/api/app/api/` | ✅ Complete (`/health`, `/chat`, `/sessions/{id}`, `/documents`, `/database`) |
+| **Docker Compose Infrastructure** | `infra/docker-compose.yml` | ✅ Complete (API, PostgreSQL 16, Qdrant containers with healthchecks) |
+
+---
+
+## Troubleshooting Guide
+
+### 1. Missing Gemini API Key
+- **Symptom**: `400 Bad Request` or `502 Bad Gateway` returning `GEMINI_CONFIG_ERROR`.
+- **Fix**: Add a valid Google Gemini API key to your `.env` file (`GEMINI_API_KEY=AIzaSy...`).
+
+### 2. Qdrant Service Connection Timeout
+- **Symptom**: `GET /health` shows `"qdrant": false`.
+- **Fix**: Ensure Qdrant is running (`docker compose up qdrant -d`) or verify `QDRANT_HOST` in `.env` matches container service name.
+
+### 3. PostgreSQL Database Connection Failure
+- **Symptom**: API container fails health check `pg_isready`.
+- **Fix**: Wait 5 seconds for PostgreSQL initialization or run `docker compose restart postgres`.
+
+---
+
+## Future Improvements
+
+1. **Persistent Cross-Device Memory**: Upgrade in-memory `ConversationMemoryManager` to persistent Redis/PostgreSQL backend for long-term user history storage.
+2. **Multi-Database Support**: Expand schema inspector to support MySQL, Snowflake, and SQLite dialects.
+3. **Streamed Server-Sent Events (SSE)**: Implement streaming responses for real-time token rendering in frontend UIs.
+
+
 
 
