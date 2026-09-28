@@ -14,6 +14,25 @@ from .state import AgentState
 logger = get_logger(__name__)
 
 
+def _build_effective_question(question: str, history: list[dict[str, Any]]) -> str:
+    """Build effective question string incorporating recent conversation history for follow-up questions."""
+    if not history:
+        return question.strip()
+
+    # If question is short (<= 7 words) or pronoun-based, append recent history context
+    if len(question.strip().split()) <= 7:
+        recent_turns = history[-4:]
+        turn_strs = [
+            f"{turn.get('role', 'user')}: {turn.get('content', '')}"
+            for turn in recent_turns
+            if isinstance(turn, dict) and turn.get("content")
+        ]
+        if turn_strs:
+            ctx_str = " | ".join(turn_strs)
+            return f"[Context: {ctx_str}] Question: {question.strip()}"
+    return question.strip()
+
+
 def rag_node(state: AgentState) -> AgentState:
     """LangGraph node executing document context retrieval and answer generation via RAGService.
 
@@ -23,15 +42,18 @@ def rag_node(state: AgentState) -> AgentState:
     Returns:
         AgentState: Updated state containing RAG answer and document citation sources.
     """
-    question = state.get("question") or state.get("query", "")
-    logger.info(f"Executing LangGraph Node [rag] for question: '{question}'")
+    raw_question = state.get("question") or state.get("query", "")
+    history = state.get("conversation_history", [])
+    effective_question = _build_effective_question(raw_question, history)
+
+    logger.info(f"Executing LangGraph Node [rag] for question: '{raw_question}'")
     start_time = time.perf_counter()
 
     errors: list[str] = state.get("errors", [])
 
     try:
         rag_service = RAGService()
-        rag_response = rag_service.answer_question(question=question)
+        rag_response = rag_service.answer_question(question=effective_question)
 
         sources = [
             {
@@ -95,15 +117,18 @@ def sql_node(state: AgentState) -> AgentState:
     Returns:
         AgentState: Updated state containing generated SQL query and structured execution results.
     """
-    question = state.get("question") or state.get("query", "")
-    logger.info(f"Executing LangGraph Node [sql] for question: '{question}'")
+    raw_question = state.get("question") or state.get("query", "")
+    history = state.get("conversation_history", [])
+    effective_question = _build_effective_question(raw_question, history)
+
+    logger.info(f"Executing LangGraph Node [sql] for question: '{raw_question}'")
     start_time = time.perf_counter()
 
     errors: list[str] = state.get("errors", [])
 
     try:
         executor = SQLExecutorService()
-        exec_result = executor.execute_question(question=question)
+        exec_result = executor.execute_question(question=effective_question)
 
         formatted_res = {
             "columns": exec_result.columns,
