@@ -48,3 +48,7 @@ data/documents/*
 !data/documents/.gitkeep
 infra/qdrant/*
 !infra/qdrant/.gitkeep
+
+# Ignore Local Technical Explanation Artifact
+PROJECT_TECHNICAL_EXPLANATION.txt
+
