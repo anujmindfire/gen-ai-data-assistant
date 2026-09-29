@@ -1,15 +1,61 @@
 # GenAI Data Assistant Monorepo
 
-A scalable, production-ready monorepo boilerplate for a **Generative AI Data Assistant** built with Python 3.12, FastAPI, LangChain, LangGraph, Google Gemini API, PostgreSQL, Qdrant, Docker Compose, `uv`, SQLAlchemy, Alembic, Ruff, and Pytest.
+[![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.0.26-orange.svg)](https://www.langchain.com/langgraph)
+[![Qdrant](https://img.shields.io/badge/Qdrant-1.8.0-red.svg)](https://qdrant.tech/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-Ready-blue.svg)](https://www.docker.com/)
+
+An enterprise-grade, production-ready **Generative AI Data Assistant** monorepo powering natural language interactions across unstructured document collections (RAG) and structured relational databases (SQL). Built with Python 3.12, FastAPI, LangChain, LangGraph, Google Gemini API, PostgreSQL 16, Qdrant Vector DB, Docker Compose, `uv`, SQLAlchemy, and Pytest.
 
 ---
 
-## Architecture Overview
+## Project Overview
 
-The GenAI Data Assistant uses a **LangGraph StateGraph DAG** to orchestrate incoming requests. Incoming user questions submitted to `POST /chat` are evaluated by a **LangGraph Router node**, which dynamically routes execution across three specialized execution branches:
-1. **RAG Branch (`route: "rag"`)**: Retrieves vector embeddings from Qdrant for unstructured document and policy questions (e.g. employee handbooks, refund rules).
-2. **SQL Agent Branch (`route: "sql"`)**: Formulates, validates, and executes read-only PostgreSQL queries for structured business analytics (e.g. revenue, order counts, top spenders).
-3. **Combined Branch (`route: "combined"`)**: Executes both document context retrieval and database analytics, fusing both sources into a unified response using Google Gemini (`gemini-3.6-flash`).
+Modern enterprise data resides in both unstructured text documents (handbooks, SOPs, policies) and structured relational SQL databases (customers, orders, inventory). 
+
+The **GenAI Data Assistant** unifies both domains into a single natural language conversational interface:
+- **Why RAG?** RAG (Retrieval-Augmented Generation) parses, chunks, and indexes company policy documents into Qdrant vector space, allowing users to query document knowledge with exact source citations.
+- **Why SQL Agent?** The SQL Agent dynamically reflects PostgreSQL database schemas and converts natural language questions into safe, read-only `SELECT` queries with AST security validation.
+- **Why LangGraph?** Standard sequential LLM chains are too linear. LangGraph's `StateGraph` DAG dynamically classifies user intent and routes execution across `rag`, `sql`, or `combined` processing branches.
+
+---
+
+## Features
+
+- [x] **Document RAG**: Ingests PDF, DOCX, TXT, and Markdown files into Qdrant vector space.
+- [x] **Recursive Chunking**: Configurable chunk size (500) and overlap (100) using `RecursiveCharacterTextSplitter`.
+- [x] **Gemini Dense Embeddings**: Generates 768-dimensional embeddings using `text-embedding-004`.
+- [x] **Source Citations**: Returns document provenance metadata (`filename`, `page`, `chunk_index`).
+- [x] **SQL Schema Introspection**: Dynamic reflection of tables, columns, primary keys, and foreign key relationships.
+- [x] **AST Read-Only SQL Validation**: AST parser via `sqlglot` guaranteeing SELECT-only queries.
+- [x] **Safe SQL Execution**: Validation-before-execution engine capping maximum returned rows (`MAX_SQL_ROWS=100`).
+- [x] **LangGraph Router**: Classifies questions into `rag`, `sql`, or `combined` routes.
+- [x] **Conversation Memory**: Thread-safe session tracking supporting context continuation and auto-trimming.
+- [x] **FastAPI & Swagger**: Fully annotated OpenAPI documentation with Pydantic v2 schemas.
+- [x] **Docker Compose**: Orchestrates API, PostgreSQL 16, and Qdrant containers with healthchecks.
+
+---
+
+## Tech Stack
+
+| Component | Technology / Library | Purpose |
+|---|---|---|
+| **Language** | Python 3.12 | Core backend programming language |
+| **Web Framework** | FastAPI | High-performance async REST API web framework |
+| **LLM & Embeddings** | Google Gemini (`gemini-3.6-flash` / `text-embedding-004`) | Generative answer synthesis & 768-dim embeddings |
+| **Orchestration** | LangChain & LangGraph | Stateful DAG graph routing & multi-agent workflow |
+| **Vector DB** | Qdrant Vector DB | High-performance Cosine similarity vector search |
+| **Relational DB** | PostgreSQL 16 | Relational business data storage & SQLAlchemy reflection |
+| **AST Parser** | `sqlglot` | Read-only Abstract Syntax Tree SQL safety validator |
+| **Package Manager** | `uv` | High-speed dependency resolver & lock manager |
+| **Containers** | Docker Compose | Multi-service local & production containerization |
+| **Testing** | Pytest (103 tests passing) | Comprehensive unit and E2E integration test suite |
+
+---
+
+## Architecture Diagram
 
 ```mermaid
 flowchart TD
@@ -22,26 +68,18 @@ flowchart TD
         Router -->|Dual Domain Question| Combined[Combined Node]
     end
     
-    RAG -->|Vector Search| Qdrant[(Qdrant Vector DB)]
-    SQL -->|Validate & Query| PostgreSQL[(PostgreSQL DB)]
+    RAG -->|Vector Similarity Search| Qdrant[(Qdrant Vector DB)]
+    SQL -->|Validate AST & Query| PostgreSQL[(PostgreSQL DB)]
     
-    Combined -->|1. Document Search| Qdrant
-    Combined -->|2. Database Query| PostgreSQL
-    Combined -->|3. Fuse Both Contexts| Gemini[Google Gemini API]
+    Combined -->|1. Search Chunks| Qdrant
+    Combined -->|2. Query Rows| PostgreSQL
+    Combined -->|3. Fuse Contexts| Gemini[Google Gemini API]
     
-    RAG -->|Formatted Answer + Sources| Response[Chat Response]
+    RAG -->|Formatted Answer + Citations| Response[Chat Response]
     SQL -->|Structured Rows Answer| Response
     Gemini -->|Unified Synthesized Answer| Response
     Response -->|JSON Payload| User
 ```
-
-### Intelligent Routing Decision Matrix
-
-| Question Example | Classified Route | Target Execution Node | Output Payload |
-|---|---|---|---|
-| *"What is the leave policy?"* | `rag` | `RAG Node` | Document answer + citations (`sources`) |
-| *"Top five customers by revenue?"* | `sql` | `SQL Node` | Database query summary table |
-| *"What is the refund policy and how much was refunded last month?"* | `combined` | `Combined Node` | Unified synthesized answer + document citations |
 
 ---
 
@@ -53,12 +91,12 @@ genai-data-assistant/
 ├── apps/
 │   └── api/                  # FastAPI Application Service
 │       ├── app/
-│       │   ├── api/          # Route handlers (/health, /chat, /documents)
+│       │   ├── api/          # Route handlers (/health, /chat, /documents, /database, /sessions)
 │       │   ├── core/         # Logging middleware, exception handlers, config
 │       │   ├── services/     # Service layer business logic interfaces
 │       │   ├── models/       # Pydantic API schemas
 │       │   ├── dependencies/ # FastAPI dependency injectors
-│       │   └── main.py       # App initialization & middleware binding
+│       │   └── main.py       # App initialization & OpenAPI metadata
 │       ├── tests/            # Integration & unit test suite (pytest)
 │       ├── Dockerfile        # Production Dockerfile (python:3.12-slim, non-root user)
 │       ├── pyproject.toml    # API dependencies & Ruff/Pytest configuration
@@ -66,415 +104,241 @@ genai-data-assistant/
 │
 ├── packages/                 # Shared Monorepo Packages
 │   ├── rag/                  # Document ingestion, chunking, embeddings & retriever modules
-│   ├── sql_agent/            # DB schema inspector, query validator & SQL agent skeletons
-│   ├── graph/                # LangGraph state definition, router & workflow DAG
+│   ├── sql_agent/            # DB schema inspector, AST query validator & execution engine
+│   ├── graph/                # LangGraph state definition, router, workflow DAG & session memory
 │   ├── shared/               # Shared settings, Gemini client, logging & utilities
-│   └── config/               # Alembic database migrations & Third-party integrations
+│   └── config/               # Alembic database migrations blueprint
 │
 ├── data/
-│   ├── documents/            # Physical document storage location (data/documents/<uuid>_<filename>)
-│   └── postgres/             # PostgreSQL persistent data storage
+│   ├── documents/            # Physical document storage (data/documents/<uuid>_<filename>)
+│   └── postgres/             # PostgreSQL persistent data volume
 │
 ├── infra/
 │   ├── docker-compose.yml    # Multi-container setup (API, Postgres, Qdrant)
 │   ├── postgres/
-│   │   └── init.sql          # Seed script: customers, products, orders, documents schema & data
+│   │   └── init.sql          # Seed script: customers, products, orders, documents schema
 │   └── qdrant/               # Qdrant volume storage
 │
 ├── scripts/
 │   ├── setup.sh              # Local development setup script
-│   └── wait-for-services.sh  # Readiness check for DB & Qdrant before boot
+│   └── wait-for-services.sh  # Readiness check script
 │
+├── .dockerignore              # Docker context exclusion rules
 ├── .env.example              # Environment variables template
-├── .gitignore                # Version control ignore rules
-├── Makefile                  # Helper commands for local dev & docker management
+├── Makefile                  # Helper commands for testing & docker management
 └── README.md                 # Project documentation
 ```
 
 ---
 
-## Document Pipeline, Embeddings & Qdrant Indexing
+## Setup Guide
 
-### Ingestion & Indexing Flow
+### 1. Clone Repository
+```bash
+git clone https://github.com/anujmindfire/gen-ai-data-assistant.git
+cd gen-ai-data-assistant
+```
+
+### 2. Environment Configuration
+Copy the `.env.example` template to `.env`:
+```bash
+cp .env.example .env
+```
+Ensure `GEMINI_API_KEY` is configured in `.env` with a valid Google Gemini API key.
+
+### 3. Local Virtual Environment Setup (`uv`)
+```bash
+uv sync
+```
+
+---
+
+## Environment Variables
+
+| Variable | Purpose | Default Value |
+|---|---|---|
+| `GEMINI_API_KEY` | Google Gemini API Authentication Key | *Required* |
+| `GEMINI_MODEL` | Gemini LLM Model Identifier | `gemini-3.6-flash` |
+| `GEMINI_EMBEDDING_MODEL` | Embedding Model for Vector Search | `text-embedding-004` |
+| `POSTGRES_HOST` | PostgreSQL Hostname | `postgres` |
+| `POSTGRES_PORT` | PostgreSQL Port | `5432` |
+| `POSTGRES_DB` | Database Name | `assistant` |
+| `POSTGRES_USER` | Database Username | `genai` |
+| `POSTGRES_PASSWORD` | Database Password | `genai` |
+| `QDRANT_HOST` | Qdrant Service Hostname | `qdrant` |
+| `QDRANT_PORT` | Qdrant Service Port | `6333` |
+| `QDRANT_COLLECTION` | Qdrant Vector Collection Name | `company_documents` |
+| `MAX_CONVERSATION_MESSAGES` | Max Message History Limit per Session | `20` |
+
+---
+
+## Running the Project with Docker Compose
+
+Build and launch all services in containerized mode:
+```bash
+docker compose -f infra/docker-compose.yml up --build
+```
+
+### Containers Started:
+1. **`genai-assistant-api`**: FastAPI API application listening at `http://localhost:8000`.
+2. **`genai-assistant-postgres`**: PostgreSQL 16 database running at `localhost:5432`.
+3. **`genai-assistant-qdrant`**: Qdrant Vector DB engine running at `localhost:6333`.
+
+---
+
+## API Endpoints
+
+| Method | Path | Summary | Description |
+|---|---|---|---|
+| `GET` | `/health` | Service Health | Health check returning API, PostgreSQL, Qdrant, & Gemini status |
+| `POST` | `/chat` | Conversational Chat | RAG & SQL-powered chat endpoint with session memory |
+| `GET` | `/sessions/{id}` | Get Session Memory | Retrieves message history for a given session ID |
+| `DELETE` | `/sessions/{id}` | Delete Session Memory | Deletes session memory context for a given session ID |
+| `POST` | `/documents/ingest` | Ingest Document | Uploads, parses, chunks, embeds, & indexes PDF, DOCX, TXT, MD |
+| `GET` | `/documents` | List Documents | Returns metadata array of all registered documents |
+| `DELETE` | `/documents/{id}` | Delete Document | Purges document record, physical file, and Qdrant vectors |
+| `POST` | `/documents/search` | Similarity Search | Semantic vector search endpoint returning top chunks |
+| `GET` | `/database/schema` | DB Schema Metadata | Reflects database tables, columns, PKs, and foreign keys |
+| `POST` | `/database/validate-sql` | Validate SQL Safety | Validates input SQL statement for read-only SELECT compliance |
+| `POST` | `/database/generate-sql` | Generate SQL | Converts natural language question into PostgreSQL SELECT statement |
+| `POST` | `/database/query` | Execute SQL Query | Full Text-to-SQL pipeline returning structured rows |
+
+Interactive Swagger OpenAPI documentation is available at `http://localhost:8000/docs`.
+
+---
+
+## RAG Workflow
+
 ```text
-Document Upload
-      ↓
-File Storage (data/documents/<uuid>_<filename>)
+Document Upload (.pdf, .docx, .txt, .md)
       ↓
 Document Parser (PyPDFLoader, Docx2txtLoader, TextLoader)
       ↓
-Document Chunker (RecursiveCharacterTextSplitter)
+Recursive Chunker (size: 500, overlap: 100)
       ↓
-Embedding Generation (GoogleGenerativeAIEmbeddings: text-embedding-004)
+Embedding Generation (Google Gemini text-embedding-004)
       ↓
-Vector Indexing (Qdrant PointStruct with payload & cosine distance)
+Qdrant Vector Indexing (Cosine Distance Metric)
       ↓
-Metadata Persistence (PostgreSQL documents table) & API Response
+Semantic Retrieval & Citation Assembly (filename, page, chunk_index)
+      ↓
+Grounded Gemini Response Synthesis
 ```
-
-### Embedding & Qdrant Configuration
-Vector embeddings are generated using Google Gemini's `text-embedding-004` model (768-dimensional dense vectors) and indexed into Qdrant collection `company_documents`.
-
-- **Embedding Model (`GEMINI_EMBEDDING_MODEL`)**: `text-embedding-004`
-- **Embedding Batch Size (`EMBEDDING_BATCH_SIZE`)**: `16` chunks per batch
-- **Qdrant Collection (`QDRANT_COLLECTION`)**: `company_documents`
-- **Vector Size (`QDRANT_VECTOR_SIZE`)**: `768` (Cosine Distance)
-
-Environment configuration (`.env`):
-```env
-GEMINI_EMBEDDING_MODEL=text-embedding-004
-EMBEDDING_BATCH_SIZE=16
-QDRANT_HOST=qdrant
-QDRANT_PORT=6333
-QDRANT_COLLECTION=company_documents
-QDRANT_VECTOR_SIZE=768
-CHUNK_SIZE=500
-CHUNK_OVERLAP=100
-```
-
-### RAG Chat Workflow with Source Citations
-When a user submits a question to `POST /chat`:
-1. **Semantic Retrieval**: Generates query vector embedding and searches Qdrant for matching document chunks.
-2. **Context Assembly & Character Safeguard**: Formats retrieved chunks while respecting `RAG_MAX_CONTEXT_CHARS` (default: 4000 characters).
-3. **Grounded Generation**: Passes strictly formatted document context to Gemini with anti-hallucination instructions.
-4. **No-Context Safeguard**: If no relevant documents exist or retrieval returns empty results, returns:
-   `"I couldn't find relevant information in the uploaded documents."` with `sources: []`.
-5. **Source Citations**: Attaches structured document source metadata (`filename`, `page`, `chunk_index`).
-
-Environment configuration (`.env`):
-```env
-GEMINI_EMBEDDING_MODEL=text-embedding-004
-EMBEDDING_BATCH_SIZE=16
-QDRANT_HOST=qdrant
-QDRANT_PORT=6333
-QDRANT_COLLECTION=company_documents
-QDRANT_VECTOR_SIZE=768
-RAG_TOP_K=5
-RAG_SCORE_THRESHOLD=0.5
-RAG_MAX_CONTEXT_CHARS=4000
-CHUNK_SIZE=500
-CHUNK_OVERLAP=100
-```
-
-### SQL Schema Introspection, Validation, Generation & Execution Pipeline
-1. **Schema Introspection**: The database schema introspection service dynamically reflects PostgreSQL database tables, columns, primary keys, and foreign key relationships using SQLAlchemy inspection with in-memory thread-safe caching.
-2. **AST SQL Validation**: Read-only SQL query safety is enforced using `sqlglot` AST parsing before any execution against PostgreSQL:
-   - **Allowed Queries**: Single `SELECT` statements and `WITH` (CTEs) that evaluate to read-only `SELECT`.
-   - **Disallowed Operations**: `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `REVOKE`, `EXECUTE`, `CALL`, transaction commands (`BEGIN`, `COMMIT`, `ROLLBACK`), and multi-statement queries separated by semicolons.
-   - **Security Rationale**: Prevents destructive operations, data manipulation, schema alterations, stored procedure calls, and SQL injection prompt bypasses at the AST level prior to PostgreSQL routing.
-3. **Natural Language to SQL Generation**: Converts business questions into valid PostgreSQL queries using Google Gemini:
-   - **Schema-Aware Prompting**: Inject dynamic table schemas, column data types, primary keys, and foreign keys directly into the Gemini prompt instructions.
-   - **Output Cleaning**: Strips markdown code block fences (` ```sql ... ``` `) and normalizes SQL text without executing queries against PostgreSQL.
-4. **Safe SQL Query Execution**: Executes validated `SELECT` queries against PostgreSQL:
-   - **Validation-Before-Execution Guarantee**: Every query passes through AST validation before reaching the database; invalid or destructive queries are blocked immediately.
-   - **Configurable Row Limits**: Capped at `MAX_SQL_ROWS` (default: 100) to prevent oversized responses.
-   - **Structured Query Logging**: Logs timestamp, natural language question, generated SQL, validation outcome, row count, and execution duration.
-
-### Conversation Memory & Follow-Up Context Handling
-The assistant features session-based **Conversation Memory** powered by an in-memory manager (`ConversationMemoryManager`):
-- **Session Continuation**: Passing `session_id` in `POST /chat` allows the system to retain interaction history across chat turns, resolving pronouns and follow-up references (e.g., *"Which customer spent the most?"* followed by *"What about the second highest?"*).
-- **Auto-Generation & Tracking**: If no `session_id` is supplied in `POST /chat`, a unique session ID is generated and returned in `ChatResponse.session_id`.
-- **Memory Trimming**: Automatically caps chat turn history at `MAX_CONVERSATION_MESSAGES` (default: 20 messages), dropping the oldest interaction pairs while retaining active context.
-- **Context Injection**: Incorporates session history directly into LangGraph state nodes to enable context-aware RAG search and Text-to-SQL generation.
 
 ---
 
-## API Endpoints & Specification
+## SQL Workflow
 
-| Method | Endpoint | Status | Description |
-|---|---|---|---|
-| `GET` | `/health` | **200 OK** | Health check returning service, Qdrant connectivity, & Gemini configuration status |
-| `POST` | `/chat` | **200 OK** | RAG & SQL-powered chat endpoint with session memory context continuation |
-| `GET` | `/sessions/{id}` | **200 OK** | Get conversation history and metadata for a specific session ID |
-| `DELETE` | `/sessions/{id}` | **200 OK** | Delete session memory and clear historical context for a specific session ID |
-| `POST` | `/documents/ingest` | **201 Created** | Upload, parse, chunk, embed document, index in Qdrant, and return chunk count |
-| `GET` | `/documents` | **200 OK** | List all uploaded document records |
-| `DELETE` | `/documents/{id}` | **200 OK** | Delete document record, purge file from disk, and remove vectors from Qdrant |
-| `POST` | `/documents/search` | **200 OK** | Semantic document similarity search endpoint returning ranked chunks with metadata |
-| `GET` | `/database/schema` | **200 OK** | Dynamic database schema introspection endpoint returning tables, columns, & relationships |
-| `POST` | `/database/validate-sql` | **200 OK** | Validates input SQL statement for read-only SELECT compliance using AST parsing |
-| `POST` | `/database/generate-sql` | **200 OK** | Generates read-only PostgreSQL query statement from natural language question using Gemini |
-| `POST` | `/database/query` | **200 OK** | Full pipeline: generates, validates, and executes read-only SQL query returning structured rows |
-
-
+```text
+Natural Language Question ("Top customers by revenue")
+      ↓
+Schema Introspection (SQLAlchemy Reflection & FK Discovery)
+      ↓
+Schema-Aware Prompt Generation (Gemini LLM)
+      ↓
+AST Read-Only SQL Validation (sqlglot SELECT-only Parser)
+      ↓
+PostgreSQL Query Execution (Capped at MAX_SQL_ROWS=100)
+      ↓
+Structured Summary Table Answer Generation
+```
 
 ---
 
-## Usage Examples
+## LangGraph Workflow
 
-### 1. Upload, Chunk, & Embed a Document
+The stateful workflow graph evaluates incoming user messages:
+1. **Router Node (`router`)**: Evaluates user intent and dynamically outputs `rag`, `sql`, or `combined`.
+2. **RAG Node (`rag`)**: Handles document similarity search and grounded policy answers.
+3. **SQL Node (`sql`)**: Handles database schema reflection, query generation, validation, and execution.
+4. **Combined Node (`combined`)**: Concurrent document retrieval and database query execution, fusing both context sources into a unified response.
 
-```bash
-curl -X POST "http://localhost:8000/documents/ingest" \
-  -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@employee_handbook.pdf"
-```
+---
 
-**Response (`201 Created`)**:
-```json
-{
-  "id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
-  "filename": "employee_handbook.pdf",
-  "status": "ingested",
-  "chunks_created": 42
-}
-```
+## Demo Scenarios
 
-### 2. List Ingested Documents
-
-```bash
-curl -X GET "http://localhost:8000/documents"
-```
-
-**Response (`200 OK`)**:
-```json
-[
-  {
-    "id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
-    "filename": "employee_handbook.pdf",
-    "type": "pdf"
-  }
-]
-```
-
-### 3. Delete a Document
-
-```bash
-curl -X DELETE "http://localhost:8000/documents/1728275e-c75b-479e-87d8-8aaab5b3dd44"
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "message": "Document deleted"
-}
-```
-
-### 4. Semantic Search Test Endpoint
-
-```bash
-curl -X POST "http://localhost:8000/documents/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What is the leave policy?", "top_k": 3}'
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "results": [
-    {
-      "chunk_id": "00000000-0000-0000-0000-000000000001",
-      "document_id": "1728275e-c75b-479e-87d8-8aaab5b3dd44",
-      "filename": "employee_handbook.pdf",
-      "file_type": "pdf",
-      "page": 14,
-      "chunk_index": 0,
-      "text": "Employees receive 20 annual leave days per calendar year.",
-      "score": 0.9342
-    }
-  ]
-}
-```
-
-### 5. LangGraph Intelligent Chat Endpoint (`POST /chat`)
-
-#### RAG Route Example (`route: "rag"`):
+### 1. Document Question Example (`route: "rag"`)
 ```bash
 curl -X POST "http://localhost:8000/chat" \
   -H "Content-Type: application/json" \
   -d '{"message": "What is the refund policy?"}'
 ```
-
-**Response (`200 OK`)**:
+**Expected Response**:
 ```json
 {
-  "answer": "Refunds are allowed within 30 days of purchase upon presenting original proof of purchase.",
+  "answer": "Refunds are allowed within 30 days of purchase upon presenting original receipt.",
+  "session_id": "sess_123abc",
   "route": "rag",
   "sources": [
     {
-      "filename": "refund_policy.pdf",
-      "page": 3,
-      "chunk_index": 1
+      "filename": "refund_policy.md",
+      "page": 1,
+      "chunk_index": 0
     }
   ],
   "provider": "gemini",
-  "model": "gemini-2.5-flash"
+  "model": "gemini-3.6-flash"
 }
 ```
 
-#### SQL Route Example (`route: "sql"`):
+### 2. SQL Question Example (`route: "sql"`)
 ```bash
 curl -X POST "http://localhost:8000/chat" \
   -H "Content-Type: application/json" \
   -d '{"message": "Top 5 customers by revenue"}'
 ```
-
-**Response (`200 OK`)**:
+**Expected Response**:
 ```json
 {
-  "answer": "Based on database query (`SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;`):\n\nColumns: [name | revenue]\nData Rows:\nAlice | 1200\nBob | 950",
+  "answer": "Based on database query (`SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;`):\n\nAlice: $1,200.00\nBob: $950.00",
+  "session_id": "sess_456def",
   "route": "sql",
   "sources": [],
   "provider": "gemini",
-  "model": "gemini-2.5-flash"
+  "model": "gemini-3.6-flash"
 }
 ```
 
-#### Combined Route Example (`route: "combined"`):
+### 3. Combined Question Example (`route: "combined"`)
 ```bash
 curl -X POST "http://localhost:8000/chat" \
   -H "Content-Type: application/json" \
   -d '{"message": "What is the refund policy and how much was refunded last month?"}'
 ```
-
-**Response (`200 OK`)**:
+**Expected Response**:
 ```json
 {
   "answer": "According to company policy, refunds are permitted within 30 days of purchase. Based on database analytics, a total of $450.00 was refunded across 3 orders last month.",
+  "session_id": "sess_789ghi",
   "route": "combined",
   "sources": [
     {
-      "filename": "refund_policy.pdf",
-      "page": 3,
-      "chunk_index": 1
+      "filename": "refund_policy.md",
+      "page": 1,
+      "chunk_index": 0
     }
   ],
   "provider": "gemini",
-  "model": "gemini-2.5-flash"
-}
-```
-
-### 6. Get Database Schema (`GET /database/schema`)
-
-```bash
-curl -X GET "http://localhost:8000/database/schema?force_refresh=false"
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "database_name": "assistant",
-  "tables": [
-    {
-      "name": "customers",
-      "columns": [
-        {"name": "id", "type": "INTEGER", "nullable": false, "primary_key": true, "default": null},
-        {"name": "name", "type": "VARCHAR", "nullable": false, "primary_key": false, "default": null}
-      ],
-      "primary_keys": ["id"],
-      "foreign_keys": []
-    }
-  ],
-  "relationships": [],
-  "inspected_at": "2026-09-25T12:00:00.000000+00:00"
-}
-```
-
-### 7. Validate SQL Query (`POST /database/validate-sql`)
-
-```bash
-curl -X POST "http://localhost:8000/database/validate-sql" \
-  -H "Content-Type: application/json" \
-  -d '{"sql": "SELECT * FROM customers;"}'
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "valid": true,
-  "reason": "Query passed read-only validation.",
-  "statement_type": "SELECT"
-}
-```
-
-**Destructive Query Example Response**:
-```json
-{
-  "valid": false,
-  "reason": "Disallowed SQL statement type 'DELETE'. Only read-only SELECT statements are permitted.",
-  "statement_type": "DELETE"
-}
-```
-
-### 8. Generate SQL from Natural Language (`POST /database/generate-sql`)
-
-```bash
-curl -X POST "http://localhost:8000/database/generate-sql" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Which are the top 5 customers by revenue?"}'
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "question": "Which are the top 5 customers by revenue?",
-  "sql": "SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;"
-}
-```
-
-### 9. Execute Natural Language SQL Query Pipeline (`POST /database/query`)
-
-```bash
-curl -X POST "http://localhost:8000/database/query" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Top 5 customers by revenue"}'
-```
-
-**Response (`200 OK`)**:
-```json
-{
-  "question": "Top 5 customers by revenue",
-  "sql": "SELECT c.name, SUM(o.total_amount) AS revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5;",
-  "columns": ["name", "revenue"],
-  "rows": [
-    ["Alice", 1200],
-    ["Bob", 950]
-  ],
-  "row_count": 2,
-  "execution_duration_ms": 14.2
+  "model": "gemini-3.6-flash"
 }
 ```
 
 ---
 
-## Development & Testing
+## Testing & Developer Tooling
 
-### Running Tests
-
-Run the Pytest suite (including SQL executor, generator, and validator unit tests):
+### Running Pytest Test Suite
 ```bash
 make test
 ```
+Executes all 103 unit and end-to-end integration tests in `apps/api/tests/`.
 
 ### Code Formatting & Linting
-
-Verify and fix code formatting using Ruff:
 ```bash
 make lint
 make format
 ```
-
----
-
-## Assignment Requirements Verification Checklist
-
-| Assignment Requirement | Module / Component | Verification Status |
-|---|---|---|
-| **Document RAG (PDF, DOCX, TXT, MD)** | `packages/rag/ingest.py` | ✅ Complete (PyPDFLoader, Docx2txtLoader, TextLoader) |
-| **Document Chunking** | `packages/rag/chunking.py` | ✅ Complete (RecursiveCharacterTextSplitter) |
-| **Google Gemini Embeddings** | `packages/rag/embeddings.py` | ✅ Complete (`text-embedding-004` embedding service) |
-| **Qdrant Vector Store** | `packages/rag/vector_store.py` | ✅ Complete (Collection indexing, similarity search, payload metadata) |
-| **RAG Source Citations** | `packages/rag/retriever.py` | ✅ Complete (Filename, page number, chunk index tracking) |
-| **SQL Schema Introspection** | `packages/sql_agent/schema_inspector.py` | ✅ Complete (SQLAlchemy reflection, columns, foreign keys, thread-safe caching) |
-| **NL → SQL Generation** | `packages/sql_agent/sql_generator.py` | ✅ Complete (Gemini schema-aware text-to-SQL prompting) |
-| **AST SQL Validation** | `packages/sql_agent/sql_validator.py` | ✅ Complete (Read-only `SELECT` AST parser via `sqlglot`) |
-| **Safe SQL Query Execution** | `packages/sql_agent/sql_executor.py` | ✅ Complete (Validation pipeline, row limit caps, structured query logging) |
-| **LangGraph Intelligent Router** | `packages/graph/router.py` | ✅ Complete (StateGraph DAG classifying `rag`, `sql`, and `combined` routes) |
-| **Combined Branch Workflow** | `packages/graph/nodes.py` | ✅ Complete (Dual-domain retrieval & synthesis node) |
-| **Conversation Memory** | `packages/graph/memory.py` | ✅ Complete (Session continuation, memory manager, follow-up query context, auto-trimming) |
-| **FastAPI Endpoints** | `apps/api/app/api/` | ✅ Complete (`/health`, `/chat`, `/sessions/{id}`, `/documents`, `/database`) |
-| **Docker Compose Infrastructure** | `infra/docker-compose.yml` | ✅ Complete (API, PostgreSQL 16, Qdrant containers with healthchecks) |
+Runs Ruff linter and formatter to enforce code formatting standards.
 
 ---
 
@@ -482,24 +346,19 @@ make format
 
 ### 1. Missing Gemini API Key
 - **Symptom**: `400 Bad Request` or `502 Bad Gateway` returning `GEMINI_CONFIG_ERROR`.
-- **Fix**: Add a valid Google Gemini API key to your `.env` file (`GEMINI_API_KEY=AIzaSy...`).
+- **Fix**: Verify `GEMINI_API_KEY` is configured in `.env`.
 
-### 2. Qdrant Service Connection Timeout
-- **Symptom**: `GET /health` shows `"qdrant": false`.
-- **Fix**: Ensure Qdrant is running (`docker compose up qdrant -d`) or verify `QDRANT_HOST` in `.env` matches container service name.
+### 2. Qdrant Connection Failure
+- **Symptom**: `GET /health` returns `"qdrant": false`.
+- **Fix**: Ensure Qdrant container is running (`docker compose up qdrant -d`).
 
 ### 3. PostgreSQL Database Connection Failure
-- **Symptom**: API container fails health check `pg_isready`.
-- **Fix**: Wait 5 seconds for PostgreSQL initialization or run `docker compose restart postgres`.
+- **Symptom**: API fails health check or database connection error.
+- **Fix**: Verify PostgreSQL service health (`docker compose ps`) or run `docker compose restart postgres`.
 
 ---
 
 ## Future Improvements
 
-1. **Persistent Cross-Device Memory**: Upgrade in-memory `ConversationMemoryManager` to persistent Redis/PostgreSQL backend for long-term user history storage.
-2. **Multi-Database Support**: Expand schema inspector to support MySQL, Snowflake, and SQLite dialects.
-3. **Streamed Server-Sent Events (SSE)**: Implement streaming responses for real-time token rendering in frontend UIs.
-
-
-
-
+1. **Persistent Redis Memory Backend**: Upgrade in-memory `ConversationMemoryManager` to a persistent Redis cluster for multi-instance horizontal scaling.
+2. **Server-Sent Events (SSE)**: Implement streaming tokens for real-time response rendering in chat web interfaces.

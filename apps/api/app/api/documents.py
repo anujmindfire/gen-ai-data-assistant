@@ -19,7 +19,15 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
     response_model=DocumentIngestResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Ingest Document File",
-    description="Uploads, parses, and registers document metadata for supported formats (.pdf, .docx, .txt, .md).",
+    description="Uploads, parses, chunks, generates embeddings, and indexes document files (.pdf, .docx, .txt, .md). Enforces a 10 MB size limit.",
+    responses={
+        201: {
+            "description": "Document parsed, chunked, embedded, and indexed in Qdrant successfully."
+        },
+        400: {"description": "Empty file or file size exceeds maximum limit of 10 MB."},
+        415: {"description": "Unsupported document format extension."},
+        422: {"description": "Unprocessable upload request body."},
+    },
 )
 async def ingest_document(
     file: UploadFile = File(..., description="Target document file to ingest"),
@@ -34,7 +42,12 @@ async def ingest_document(
     response_model=list[DocumentItem],
     status_code=status.HTTP_200_OK,
     summary="List Uploaded Documents",
-    description="Returns array of all registered documents.",
+    description="Returns array of all registered document metadata items.",
+    responses={
+        200: {
+            "description": "Successfully retrieved array of uploaded document records."
+        },
+    },
 )
 async def list_documents(
     doc_service: DocumentService = Depends(get_document_service),
@@ -49,7 +62,11 @@ async def list_documents(
     response_model=DocumentDeleteResponse,
     status_code=status.HTTP_200_OK,
     summary="Delete Document by ID",
-    description="Purges document metadata record and deletes physical file from storage.",
+    description="Purges document metadata record, physical disk file, and Qdrant vector points.",
+    responses={
+        200: {"description": "Document record and vector points purged successfully."},
+        404: {"description": "Document ID not found."},
+    },
 )
 async def delete_document(
     document_id: str,

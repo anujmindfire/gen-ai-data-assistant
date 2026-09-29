@@ -12,8 +12,23 @@ router = APIRouter(tags=["Chat"])
     "/chat",
     response_model=ChatResponse,
     status_code=status.HTTP_200_OK,
-    summary="Chat with Gemini Assistant",
-    description="Submits user message prompt to Google Gemini LLM and returns structured answer.",
+    summary="Conversational AI Data Assistant Endpoint",
+    description=(
+        "Submits user natural language prompt to LangGraph StateGraph workflow DAG.\n\n"
+        "**Routing Branches**:\n"
+        "- `rag`: Vector search over Qdrant policy documents with source citations.\n"
+        "- `sql`: AST-validated SELECT database analytics query over PostgreSQL.\n"
+        "- `combined`: Dual-domain vector retrieval & SQL query context fusion.\n\n"
+        "**Session Memory**: Pass optional `session_id` to continue multi-turn conversation context."
+    ),
+    responses={
+        200: {
+            "description": "Successful chat completion response with answer, route, citations, and session_id."
+        },
+        400: {"description": "Invalid input prompt or missing configuration error."},
+        422: {"description": "Validation error in request JSON body."},
+        502: {"description": "Gemini LLM API or backend service failure."},
+    },
 )
 async def chat_endpoint(
     request: ChatRequest,
